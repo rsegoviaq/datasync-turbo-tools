@@ -1,0 +1,83 @@
+# Binaries
+s5cmd
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test data
+tests/test-data/*.bin
+tests/test-data/*.dat
+tests/test-data/downloaded/
+
+# Log files
+*.log
+logs/
+*.json
+
+# Configuration files with secrets
+config/*.env
+!config/*.env.template
+
+# AWS credentials
+.aws/
+aws-credentials.json
+
+# OS-specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+tmp/
+
+# Package files
+*.tar.gz
+*.zip
+*.tgz
+
+# Backup files
+*.backup
+*.bak
+
+# Downloaded binaries
+tools/downloads/
+
+# Test results
+test-results/
+benchmark-results/
+performance-reports/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Go
+*.test
+*.out
+vendor/

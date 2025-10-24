@@ -74,7 +74,11 @@ test_missing_config() {
     local script="${PROJECT_DIR}/scripts/datasync-s5cmd.sh"
 
     # Run script without configuration (should fail gracefully)
-    if "$script" --config /nonexistent/config.env 2>&1 | grep -q "Config file not found"; then
+    # Use || true to ignore exit code, we just want to check the output
+    local output
+    output=$("$script" --config /nonexistent/config.env 2>&1 || true)
+
+    if echo "$output" | grep -q "Config file not found"; then
         log_pass "Script handles missing config file"
         return 0
     else
@@ -97,8 +101,11 @@ S3_BUCKET="this-bucket-definitely-does-not-exist-12345678"
 EOF
 
     # Run script (should fail with proper error)
-    if SOURCE_DIR="$temp_dir" S3_BUCKET="this-bucket-definitely-does-not-exist-12345678" \
-       "$script" --dry-run 2>&1 | grep -q "Prerequisites validation"; then
+    local output
+    output=$(SOURCE_DIR="$temp_dir" S3_BUCKET="this-bucket-definitely-does-not-exist-12345678" \
+       "$script" --dry-run 2>&1 || true)
+
+    if echo "$output" | grep -q "Prerequisites validation"; then
         log_pass "Script validates S3 access properly"
         rm -rf "$temp_dir"
         return 0
@@ -116,8 +123,11 @@ test_missing_source() {
     local script="${PROJECT_DIR}/scripts/datasync-s5cmd.sh"
 
     # Run script with non-existent source
-    if SOURCE_DIR="/this/path/does/not/exist" S3_BUCKET="test" \
-       "$script" 2>&1 | grep -q "SOURCE_DIR does not exist\|Prerequisites validation failed"; then
+    local output
+    output=$(SOURCE_DIR="/this/path/does/not/exist" S3_BUCKET="test" \
+       "$script" 2>&1 || true)
+
+    if echo "$output" | grep -q "SOURCE_DIR does not exist\|Prerequisites validation failed"; then
         log_pass "Script handles missing source directory"
         return 0
     else
@@ -132,9 +142,11 @@ test_missing_variables() {
 
     local script="${PROJECT_DIR}/scripts/datasync-s5cmd.sh"
 
-    # Run script without SOURCE_DIR
-    if unset SOURCE_DIR && unset S3_BUCKET && \
-       "$script" 2>&1 | grep -q "SOURCE_DIR not set\|S3_BUCKET not set"; then
+    # Run script without SOURCE_DIR and S3_BUCKET
+    local output
+    output=$(env -u SOURCE_DIR -u S3_BUCKET "$script" 2>&1 || true)
+
+    if echo "$output" | grep -q "SOURCE_DIR not set\|S3_BUCKET not set"; then
         log_pass "Script validates required variables"
         return 0
     else
@@ -186,8 +198,11 @@ test_dry_run_mode() {
     echo "test" > "${temp_dir}/test.txt"
 
     # Run in dry-run mode
-    if SOURCE_DIR="$temp_dir" S3_BUCKET="test-bucket" \
-       "$script" --dry-run 2>&1 | grep -q "DRY RUN\|dry.run"; then
+    local output
+    output=$(SOURCE_DIR="$temp_dir" S3_BUCKET="test-bucket" \
+       "$script" --dry-run 2>&1 || true)
+
+    if echo "$output" | grep -q "DRY RUN\|dry.run\|Dry Run"; then
         log_pass "Dry-run mode works"
         rm -rf "$temp_dir"
         return 0
@@ -205,7 +220,10 @@ test_invalid_arguments() {
     local script="${PROJECT_DIR}/scripts/datasync-s5cmd.sh"
 
     # Run with invalid argument
-    if "$script" --invalid-option 2>&1 | grep -q "Unknown option\|Unknown argument"; then
+    local output
+    output=$("$script" --invalid-option 2>&1 || true)
+
+    if echo "$output" | grep -q "Unknown option\|Unknown argument"; then
         log_pass "Script handles invalid arguments"
         return 0
     else
@@ -345,8 +363,11 @@ test_invalid_checksum() {
     local temp_dir=$(mktemp -d)
 
     # Run with invalid checksum algorithm
-    if SOURCE_DIR="$temp_dir" S3_BUCKET="test" S5CMD_CHECKSUM="INVALID_ALGO" \
-       "$script" 2>&1 | grep -q "Invalid checksum\|validation failed"; then
+    local output
+    output=$(SOURCE_DIR="$temp_dir" S3_BUCKET="test" S5CMD_CHECKSUM="INVALID_ALGO" \
+       "$script" 2>&1 || true)
+
+    if echo "$output" | grep -q "Invalid checksum\|validation failed"; then
         log_pass "Script validates checksum algorithm"
         rm -rf "$temp_dir"
         return 0

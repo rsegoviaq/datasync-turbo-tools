@@ -208,7 +208,7 @@ validate_prerequisites() {
     if ! command -v s5cmd &> /dev/null; then
         log_error "s5cmd not found in PATH"
         log_error "Install with: ./tools/install-s5cmd.sh"
-        ((errors++))
+        ((errors++)) || true
     else
         local s5cmd_version
         s5cmd_version=$(s5cmd version 2>&1 | head -n 1)
@@ -218,17 +218,17 @@ validate_prerequisites() {
     # Check required variables
     if [ -z "${SOURCE_DIR:-}" ]; then
         log_error "SOURCE_DIR not set"
-        ((errors++))
+        ((errors++)) || true
     elif [ ! -d "$SOURCE_DIR" ]; then
         log_error "SOURCE_DIR does not exist: $SOURCE_DIR"
-        ((errors++))
+        ((errors++)) || true
     else
         log_success "Source directory exists: $SOURCE_DIR"
     fi
 
     if [ -z "${S3_BUCKET:-}" ]; then
         log_error "S3_BUCKET not set"
-        ((errors++))
+        ((errors++)) || true
     else
         log_success "S3 bucket configured: s3://$S3_BUCKET"
     fi
@@ -239,8 +239,8 @@ validate_prerequisites() {
         log_success "AWS profile set: $AWS_PROFILE"
     fi
 
-    # Validate S3 access (skip in dry-run mode)
-    if [ "$DRY_RUN" = false ]; then
+    # Validate S3 access (skip in dry-run mode and if s5cmd not available)
+    if [ "$DRY_RUN" = false ] && command -v s5cmd &> /dev/null; then
         log_info "Testing S3 access..."
         if s5cmd ls "s3://${S3_BUCKET}/" &> /dev/null; then
             log_success "S3 bucket accessible"

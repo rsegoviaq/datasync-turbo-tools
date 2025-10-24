@@ -310,27 +310,42 @@ perform_sync() {
     # Build s5cmd command
     local s5cmd_cmd="s5cmd"
 
-    # Add global flags
+    # Add global flags (must come before 'sync' command)
     s5cmd_cmd+=" --numworkers $S5CMD_NUM_WORKERS"
-    s5cmd_cmd+=" --concurrency $S5CMD_CONCURRENCY"
     s5cmd_cmd+=" --retry-count $S5CMD_RETRY_COUNT"
     s5cmd_cmd+=" --log $S5CMD_LOG_LEVEL"
+
+    # Add AWS profile if specified
+    if [ -n "${AWS_PROFILE:-}" ]; then
+        s5cmd_cmd+=" --profile $AWS_PROFILE"
+    fi
+
+    # Add dry-run global flag if requested
+    if [ "$DRY_RUN" = true ]; then
+        s5cmd_cmd+=" --dry-run"
+    fi
 
     # Add sync command
     s5cmd_cmd+=" sync"
 
-    # Add sync flags
+    # Add sync flags (must come after 'sync' command)
+    s5cmd_cmd+=" --concurrency $S5CMD_CONCURRENCY"
+
+    # Convert part size from MB to MiB (s5cmd expects integer in MiB)
+    local part_size_mb="${S5CMD_PART_SIZE//MB/}"
+    s5cmd_cmd+=" --part-size $part_size_mb"
+
+    s5cmd_cmd+=" --storage-class $S3_STORAGE_CLASS"
+
+    # Checksum handling
     if [ "$S5CMD_CHECKSUM" != "none" ]; then
         # s5cmd doesn't have a direct checksum flag, but it uses checksums internally
         # We'll verify checksums post-upload if needed
         :
     fi
 
-    s5cmd_cmd+=" --storage-class $S3_STORAGE_CLASS"
-
-    # Add dry-run if requested
+    # Log dry-run warning
     if [ "$DRY_RUN" = true ]; then
-        s5cmd_cmd+=" --dry-run"
         log_warn "DRY RUN MODE - No files will be uploaded"
     fi
 

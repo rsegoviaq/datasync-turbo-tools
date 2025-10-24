@@ -225,13 +225,28 @@ benchmark_s5cmd() {
 
     # Run upload
     log_info "Uploading ${TEST_SIZE_MB} MB to s3://${S3_BUCKET}/${S3_PREFIX}-s5cmd/ ..."
-    if s5cmd \
-        --concurrency "$concurrency" \
+
+    # Build s5cmd command with correct flag order
+    # Global flags MUST come before 'sync' command
+    # Sync flags MUST come after 'sync' command
+    local s5cmd_profile_flag=""
+    if [ -n "${AWS_PROFILE:-}" ]; then
+        s5cmd_profile_flag="--profile $AWS_PROFILE"
+    fi
+
+    # Run s5cmd (capture output but don't fail on grep)
+    local s5cmd_output
+    s5cmd_output=$(s5cmd \
         --numworkers "$num_workers" \
+        $s5cmd_profile_flag \
         sync \
+        --concurrency "$concurrency" \
+        --exclude "*.sha256" \
         "$TEMP_DIR/" \
         "s3://${S3_BUCKET}/${S3_PREFIX}-s5cmd/" \
-        --exclude "*.sha256" 2>&1 | grep -v "cp"; then
+        2>&1 || echo "FAILED")
+
+    if [[ "$s5cmd_output" != *"FAILED"* ]]; then
 
         # End timer
         local end_time
@@ -251,6 +266,7 @@ benchmark_s5cmd() {
         echo "$throughput_mbs" > "${TEMP_DIR}/s5cmd-throughput.txt"
     else
         log_error "s5cmd upload failed"
+        log_error "Error output: $s5cmd_output"
         echo "999999" > "${TEMP_DIR}/s5cmd-time.txt"
         echo "0" > "${TEMP_DIR}/s5cmd-throughput.txt"
     fi

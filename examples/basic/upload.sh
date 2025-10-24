@@ -105,8 +105,8 @@ log_info "Loading configuration from config.env..."
 source "$SCRIPT_DIR/config.env"
 
 # Validate required settings
-if [ -z "${BUCKET_NAME:-}" ]; then
-    log_error "BUCKET_NAME is not set in config.env"
+if [ -z "${S3_BUCKET:-}" ]; then
+    log_error "S3_BUCKET is not set in config.env"
     exit 1
 fi
 
@@ -138,7 +138,7 @@ if ! command -v s5cmd &> /dev/null; then
 fi
 
 log_success "Configuration loaded"
-log_info "Bucket: s3://$BUCKET_NAME/$S3_SUBDIRECTORY"
+log_info "Bucket: s3://$S3_BUCKET/$S3_SUBDIRECTORY"
 log_info "Source: $SOURCE_DIR"
 echo
 

@@ -202,11 +202,21 @@ test_aws_profile() {
         return 0
     fi
 
+    # Build AWS command with profile if set
+    local aws_cmd="aws"
+    if [ -n "${AWS_PROFILE:-}" ]; then
+        aws_cmd="aws --profile $AWS_PROFILE"
+    fi
+
     # Try to get caller identity
-    if aws sts get-caller-identity &> /dev/null; then
+    if $aws_cmd sts get-caller-identity &> /dev/null; then
         local identity
-        identity=$(aws sts get-caller-identity --query 'Arn' --output text 2>/dev/null || echo "unknown")
-        log_success "AWS profile is valid: $identity"
+        identity=$($aws_cmd sts get-caller-identity --query 'Arn' --output text 2>/dev/null || echo "unknown")
+        local profile_info=""
+        if [ -n "${AWS_PROFILE:-}" ]; then
+            profile_info=" (profile: $AWS_PROFILE)"
+        fi
+        log_success "AWS credentials are valid$profile_info: $identity"
         return 0
     else
         if [ "$STRICT_MODE" = "--strict" ]; then
@@ -231,10 +241,20 @@ test_s3_bucket_access() {
         return 1
     fi
 
+    # Build s5cmd command with profile if set
+    local s5cmd_cmd="s5cmd"
+    if [ -n "${AWS_PROFILE:-}" ]; then
+        s5cmd_cmd="s5cmd --profile $AWS_PROFILE"
+    fi
+
     # If no test bucket specified, just try to list any buckets
     if [ -z "$TEST_BUCKET" ]; then
-        if s5cmd ls s3:// &> /dev/null; then
-            log_success "S3 access verified (can list buckets)"
+        if $s5cmd_cmd ls s3:// &> /dev/null; then
+            local profile_info=""
+            if [ -n "${AWS_PROFILE:-}" ]; then
+                profile_info=" (using profile: $AWS_PROFILE)"
+            fi
+            log_success "S3 access verified (can list buckets)$profile_info"
             return 0
         else
             if [ "$STRICT_MODE" = "--strict" ]; then
@@ -243,14 +263,18 @@ test_s3_bucket_access() {
                 return 1
             else
                 log_warn "Cannot list S3 buckets"
-                log_info "   This may be normal if credentials are limited"
+                log_info "   This may be normal if credentials are limited to specific buckets"
                 return 0
             fi
         fi
     else
         # Test specific bucket
-        if s5cmd ls "s3://${TEST_BUCKET}/" &> /dev/null; then
-            log_success "S3 bucket accessible: s3://${TEST_BUCKET}/"
+        if $s5cmd_cmd ls "s3://${TEST_BUCKET}/" &> /dev/null; then
+            local profile_info=""
+            if [ -n "${AWS_PROFILE:-}" ]; then
+                profile_info=" (using profile: $AWS_PROFILE)"
+            fi
+            log_success "S3 bucket accessible: s3://${TEST_BUCKET}/$profile_info"
             return 0
         else
             if [ "$STRICT_MODE" = "--strict" ]; then

@@ -1,0 +1,24 @@
+s5cmd vs AWS CLI Benchmark Results
+====================================
+
+Timestamp: Thu Oct 23 22:41:36 CST 2025
+Test size: 500 MB
+Files: 10
+S3 bucket: s3://datasync-filmflow-20251022
+
+Results:
+--------
+69.330172870
+AWS CLI (default) time:       69.330172870 seconds
+7.21
+AWS CLI (default) throughput: 7.21 MB/s
+
+78.945329498
+AWS CLI (optimized) time:     78.945329498 seconds
+6.33
+AWS CLI (optimized) throughput: 6.33 MB/s
+
+58.172053988
+s5cmd time:                   58.172053988 seconds
+8.59
+s5cmd throughput:             8.59 MB/s

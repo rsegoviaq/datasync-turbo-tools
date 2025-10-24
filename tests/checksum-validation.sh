@@ -50,12 +50,12 @@ log_info() {
 
 log_success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
-    ((TESTS_PASSED++))
+    ((TESTS_PASSED++)) || true
 }
 
 log_fail() {
     echo -e "${RED}[FAIL]${NC} $1"
-    ((TESTS_FAILED++))
+    ((TESTS_FAILED++)) || true
 }
 
 log_header() {
@@ -149,7 +149,7 @@ check_prerequisites() {
     if ! command -v s5cmd &> /dev/null; then
         log_fail "s5cmd not found in PATH"
         log_info "   Install with: ./tools/install-s5cmd.sh"
-        ((errors++))
+        ((errors++)) || true
     else
         local version
         version=$(s5cmd version 2>&1 | head -n 1)
@@ -160,7 +160,7 @@ check_prerequisites() {
     if [ -z "$S3_BUCKET" ]; then
         log_fail "S3 bucket not specified"
         log_info "   Use --bucket option or S3_BUCKET environment variable"
-        ((errors++))
+        ((errors++)) || true
     else
         log_success "S3 bucket: s3://$S3_BUCKET"
     fi
@@ -172,7 +172,7 @@ check_prerequisites() {
             log_success "S3 bucket accessible"
         else
             log_fail "Cannot access S3 bucket: s3://${S3_BUCKET}/"
-            ((errors++))
+            ((errors++)) || true
         fi
     fi
 
@@ -183,7 +183,7 @@ check_prerequisites() {
         log_success "shasum available"
     else
         log_fail "No SHA256 tool found (sha256sum or shasum)"
-        ((errors++))
+        ((errors++)) || true
     fi
 
     if [ $errors -gt 0 ]; then

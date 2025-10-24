@@ -45,16 +45,16 @@ log_info() {
 
 log_pass() {
     echo -e "${GREEN}[PASS]${NC} $1"
-    ((TESTS_PASSED++))
+    ((TESTS_PASSED++)) || true
 }
 
 log_fail() {
     echo -e "${RED}[FAIL]${NC} $1"
-    ((TESTS_FAILED++))
+    ((TESTS_FAILED++)) || true
 }
 
 log_test() {
-    ((TESTS_TOTAL++))
+    ((TESTS_TOTAL++)) || true
     if [ "$VERBOSE" = true ]; then
         echo -e "${BLUE}[TEST $TESTS_TOTAL]${NC} $1"
     fi
@@ -175,28 +175,28 @@ test_upload_scripts() {
     # Check s5cmd script
     if [ ! -f "${PROJECT_DIR}/scripts/datasync-s5cmd.sh" ]; then
         log_fail "s5cmd upload script not found"
-        ((errors++))
+        ((errors++)) || true
     elif [ ! -x "${PROJECT_DIR}/scripts/datasync-s5cmd.sh" ]; then
         log_fail "s5cmd upload script is not executable"
-        ((errors++))
+        ((errors++)) || true
     fi
 
     # Check AWS CLI script
     if [ ! -f "${PROJECT_DIR}/scripts/datasync-awscli.sh" ]; then
         log_fail "AWS CLI upload script not found"
-        ((errors++))
+        ((errors++)) || true
     elif [ ! -x "${PROJECT_DIR}/scripts/datasync-awscli.sh" ]; then
         log_fail "AWS CLI upload script is not executable"
-        ((errors++))
+        ((errors++)) || true
     fi
 
     # Check sync-now wrapper
     if [ ! -f "${PROJECT_DIR}/scripts/sync-now.sh" ]; then
         log_fail "sync-now wrapper script not found"
-        ((errors++))
+        ((errors++)) || true
     elif [ ! -x "${PROJECT_DIR}/scripts/sync-now.sh" ]; then
         log_fail "sync-now wrapper script is not executable"
-        ((errors++))
+        ((errors++)) || true
     fi
 
     if [ $errors -eq 0 ]; then
@@ -215,12 +215,12 @@ test_config_templates() {
 
     if [ ! -f "${PROJECT_DIR}/config/s5cmd.env.template" ]; then
         log_fail "s5cmd config template not found"
-        ((errors++))
+        ((errors++)) || true
     fi
 
     if [ ! -f "${PROJECT_DIR}/config/awscli.env.template" ]; then
         log_fail "AWS CLI config template not found"
-        ((errors++))
+        ((errors++)) || true
     fi
 
     if [ $errors -eq 0 ]; then
@@ -241,7 +241,7 @@ test_directory_structure() {
     for dir in "${dirs[@]}"; do
         if [ ! -d "${PROJECT_DIR}/${dir}" ]; then
             log_fail "Directory not found: ${dir}/"
-            ((errors++))
+            ((errors++)) || true
         fi
     done
 
@@ -323,7 +323,7 @@ test_script_shebangs() {
             first_line=$(head -n 1 "$script_path")
             if [[ ! "$first_line" =~ ^#!/bin/bash ]]; then
                 log_fail "$script has invalid shebang: $first_line"
-                ((errors++))
+                ((errors++)) || true
             fi
         fi
     done
@@ -347,7 +347,7 @@ test_aws_cli_optional() {
         return 0
     else
         log_info "AWS CLI not installed (optional)"
-        ((TESTS_PASSED++))
+        ((TESTS_PASSED++)) || true
         return 0
     fi
 }

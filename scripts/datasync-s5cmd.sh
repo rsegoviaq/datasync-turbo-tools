@@ -269,7 +269,7 @@ validate_prerequisites() {
 
 # Calculate source directory size
 calculate_source_size() {
-    log_info "Calculating source directory size..."
+    log_info "Calculating source directory size..." >&2
 
     local size_bytes
     size_bytes=$(du -sb "$SOURCE_DIR" 2>/dev/null | awk '{print $1}')
@@ -277,18 +277,18 @@ calculate_source_size() {
     local size_human
     size_human=$(du -sh "$SOURCE_DIR" 2>/dev/null | awk '{print $1}')
 
-    log_info "Source directory size: $size_human ($size_bytes bytes)"
+    log_info "Source directory size: $size_human ($size_bytes bytes)" >&2
     echo "$size_bytes"
 }
 
 # Count files in source directory
 count_source_files() {
-    log_info "Counting files in source directory..."
+    log_info "Counting files in source directory..." >&2
 
     local file_count
     file_count=$(find "$SOURCE_DIR" -type f | wc -l)
 
-    log_info "Files to sync: $file_count"
+    log_info "Files to sync: $file_count" >&2
     echo "$file_count"
 }
 
@@ -395,6 +395,8 @@ perform_sync() {
     # Parse output to get statistics
     # s5cmd outputs lines like: "cp s3://bucket/file"
     FILES_SYNCED=$(grep -c "^cp " "$output_file" 2>/dev/null || echo "0")
+    # Ensure FILES_SYNCED is a clean integer (take only first line)
+    FILES_SYNCED=$(echo "$FILES_SYNCED" | head -n 1 | tr -d '\n\r ')
 
     # Calculate bytes transferred (if available in output)
     # This is approximate - s5cmd doesn't always show byte counts in sync output

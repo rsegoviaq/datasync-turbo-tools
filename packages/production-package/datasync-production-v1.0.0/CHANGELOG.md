@@ -5,6 +5,41 @@ All notable changes to DataSync Turbo Tools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-10-30
+
+### Added
+- **Direct AWS Credentials Support**: Configure AWS credentials directly without requiring AWS CLI profile setup
+  - New config options: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`
+  - Ideal for CI/CD environments, containers, or systems without AWS CLI profile configuration
+- **Enhanced AWS CLI Installation Guidance**: Comprehensive installation instructions when AWS CLI is not detected
+  - Platform-specific instructions (Linux, macOS)
+  - Package manager alternatives
+  - Direct download links
+
+### Changed
+- **Configuration Template**: Updated `production.env.template` with clear authentication method selection
+  - Two authentication methods: AWS Profile (Method 1) or Direct Credentials (Method 2)
+  - Detailed comments explaining each approach and security considerations
+- **Upload Script Authentication**: Enhanced credential detection and validation
+  - Displays active authentication method during execution
+  - Shows partial access key for verification (first 8 characters)
+  - Falls back to default AWS credentials chain if neither method configured
+- **Installer**: Updated configuration setup guidance to explain both authentication methods
+  - Clear instructions for choosing between profile and credentials
+  - Improved user experience during initial setup
+
+### Improved
+- Help documentation now includes complete AWS credential configuration options
+- Better error messages and validation for AWS authentication
+- Configuration display shows which authentication method is active
+
+### Notes
+- **Backward Compatible**: Existing configurations using `AWS_PROFILE` continue to work without changes
+- **Security Best Practice**: AWS profiles still recommended for local/development environments
+- **Profile Priority**: If both profile and credentials are set, profile takes precedence
+
+---
+
 ## [1.0.0] - 2025-10-28
 
 ### Added

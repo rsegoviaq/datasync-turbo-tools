@@ -179,6 +179,16 @@ create_changelog() {
     local version="$1"
     local package_dir="$BUILD_DIR/datasync-production-v${version}"
 
+    # Copy CHANGELOG from project root (contains all version history)
+    if [ -f "$PROJECT_ROOT/CHANGELOG.md" ]; then
+        log_info "Copying CHANGELOG from project root..."
+        cp "$PROJECT_ROOT/CHANGELOG.md" "$package_dir/CHANGELOG.md"
+        log_success "CHANGELOG copied"
+        return 0
+    fi
+
+    # Fallback: create basic CHANGELOG if none exists
+    log_warning "CHANGELOG.md not found in project root, creating basic version..."
     cat > "$package_dir/CHANGELOG.md" << 'EOF'
 # Changelog
 

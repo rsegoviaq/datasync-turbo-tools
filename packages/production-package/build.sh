@@ -85,6 +85,8 @@ validate_source_files() {
         "$PROJECT_ROOT/monitoring/check-status.sh"
         "$PROJECT_ROOT/monitoring/alerts.sh"
         "$PROJECT_ROOT/logging/logrotate.conf"
+        "$PROJECT_ROOT/quick-install.sh"
+        "$PROJECT_ROOT/config/config-validator.sh"
     )
 
     for file in "${required_files[@]}"; do
@@ -154,16 +156,24 @@ sync_latest_files() {
     cp "$PROJECT_ROOT/logging/logrotate.conf" "$package_dir/logging/"
     log_success "Log rotation config synced"
 
-    # Sync config template
+    # Sync config template and validator
     log_info "Syncing configuration..."
     cp "$PROJECT_ROOT/examples/production/config.env" "$package_dir/config/production.env.template"
-    log_success "Config template synced"
+    cp "$PROJECT_ROOT/config/config-validator.sh" "$package_dir/config/"
+    log_success "Config template and validator synced"
+
+    # Sync quick-install script (v1.2.0+)
+    log_info "Syncing quick-install script..."
+    cp "$PROJECT_ROOT/quick-install.sh" "$package_dir/"
+    log_success "Quick install script synced"
 
     # Set permissions
     log_info "Setting permissions..."
     chmod +x "$package_dir/install.sh"
+    chmod +x "$package_dir/quick-install.sh"
     chmod +x "$package_dir/scripts"/*.sh 2>/dev/null || true
     chmod +x "$package_dir/tools"/*.sh 2>/dev/null || true
+    chmod +x "$package_dir/config"/*.sh 2>/dev/null || true
     chmod +x "$package_dir/monitoring"/*.sh 2>/dev/null || true
     chmod +x "$package_dir/deployment"/*.sh 2>/dev/null || true
     log_success "Permissions set"

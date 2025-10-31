@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Status](https://img.shields.io/badge/status-production-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-1.1.0-blue)]()
+[![Version](https://img.shields.io/badge/version-1.2.0-blue)]()
 
 ## 🚀 Performance
 
@@ -96,15 +96,43 @@ datasync-turbo-tools/
 
 ---
 
-## 🎯 Quick Start (Production Package)
+## 🎯 Quick Start
 
-### Option 1: Use Pre-Built Package (Recommended)
+### One-Click Installation (Recommended - New in v1.2.0!)
+
+The fastest way to get started is with our interactive installer:
 
 ```bash
 # Extract production package
 cd packages/production-package
-tar xzf datasync-production-v1.0.0.tar.gz
-cd datasync-production-v1.0.0
+tar xzf datasync-production-v1.2.0.tar.gz
+cd datasync-production-v1.2.0
+
+# Run quick installer (one command!)
+./quick-install.sh
+```
+
+**That's it!** The quick installer will:
+- ✅ Check prerequisites and install s5cmd
+- ✅ Guide you through configuration with interactive prompts
+- ✅ Validate AWS credentials and S3 bucket access in real-time
+- ✅ Create all necessary directories and configs
+- ✅ Run verification tests
+- ✅ Offer immediate dry-run testing
+
+**Time to complete:** ~2-3 minutes
+
+---
+
+### Option 2: Manual Installation
+
+If you prefer step-by-step control:
+
+```bash
+# Extract production package
+cd packages/production-package
+tar xzf datasync-production-v1.2.0.tar.gz
+cd datasync-production-v1.2.0
 
 # Run installer
 ./install.sh
@@ -125,7 +153,7 @@ cd deployment
 ./deploy.sh --deploy
 ```
 
-### Option 2: Development/Custom Setup
+### Option 3: Development/Custom Setup
 
 ```bash
 # Clone repository
@@ -290,8 +318,8 @@ For questions, issues, or feature requests:
 
 ---
 
-**Version:** 1.1.0
-**Release Date:** 2025-10-30
+**Version:** 1.2.0
+**Release Date:** 2025-10-31
 **Status:** Production Ready
 
 See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for development history.

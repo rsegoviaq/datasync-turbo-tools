@@ -49,6 +49,28 @@ log_step() {
     echo -e "${CYAN}[STEP]${NC} $1"
 }
 
+# Find and source configuration file
+# Tries multiple locations for backward compatibility
+# Returns: 0 if config loaded, 1 if not found
+find_and_source_config() {
+    local config_locations=(
+        "$PROJECT_ROOT/config/production.env"      # New location (v1.2.0+)
+        "$SCRIPT_DIR/config.env"                   # Original location
+        "$SCRIPT_DIR/../config/production.env"     # Relative from deployment/
+        "$PROJECT_ROOT/deployment/config.env"      # Alternative deployment location
+    )
+
+    for config_file in "${config_locations[@]}"; do
+        if [[ -f "$config_file" ]]; then
+            # shellcheck disable=SC1090
+            source "$config_file"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 show_help() {
     cat << EOF
 DataSync Turbo Tools - Production Deployment Script
@@ -104,10 +126,13 @@ install() {
 
     # Create directories
     log_info "Creating directories..."
-    source "$SCRIPT_DIR/config.env"
-
-    sudo mkdir -p "$LOG_DIR" "$JSON_OUTPUT_DIR" "$(dirname "$HEALTH_CHECK_FILE")"
-    sudo chown -R "$USER:$USER" "$LOG_DIR" "$JSON_OUTPUT_DIR" "$(dirname "$HEALTH_CHECK_FILE")"
+    if ! find_and_source_config; then
+        log_warning "Config file not found, skipping directory creation"
+        log_info "Run quick-install.sh or create config manually"
+    else
+        sudo mkdir -p "$LOG_DIR" "$JSON_OUTPUT_DIR" "$(dirname "$HEALTH_CHECK_FILE")"
+        sudo chown -R "$USER:$USER" "$LOG_DIR" "$JSON_OUTPUT_DIR" "$(dirname "$HEALTH_CHECK_FILE")"
+    fi
 
     # Configure log rotation
     log_info "Configuring log rotation..."
@@ -130,12 +155,14 @@ validate() {
     local errors=0
 
     # Load configuration
-    if [ ! -f "$SCRIPT_DIR/config.env" ]; then
-        log_error "Configuration file not found: config.env"
+    if ! find_and_source_config; then
+        log_error "Configuration file not found"
+        log_error "Expected locations:"
+        log_error "  - $PROJECT_ROOT/config/production.env"
+        log_error "  - $SCRIPT_DIR/config.env"
+        log_error "Run quick-install.sh to create configuration"
         return 1
     fi
-
-    source "$SCRIPT_DIR/config.env"
 
     # Check s5cmd
     if ! command -v s5cmd &> /dev/null; then
@@ -211,7 +238,10 @@ test_upload() {
     log_step "Testing upload (dry-run)"
     echo
 
-    source "$SCRIPT_DIR/config.env"
+    if ! find_and_source_config; then
+        log_error "Configuration file not found"
+        return 1
+    fi
 
     log_info "Running dry-run upload..."
     "$PROJECT_ROOT/scripts/datasync-s5cmd.sh" --dry-run
@@ -239,7 +269,10 @@ deploy() {
         return 0
     fi
 
-    source "$SCRIPT_DIR/config.env"
+    if ! find_and_source_config; then
+        log_error "Configuration file not found"
+        return 1
+    fi
 
     # Create systemd service (optional)
     log_info "Would you like to create a systemd service for automatic uploads?"
@@ -261,6 +294,16 @@ deploy() {
 create_systemd_service() {
     log_info "Creating systemd service..."
 
+    # Determine config file location
+    local config_file=""
+    if [[ -f "$PROJECT_ROOT/config/production.env" ]]; then
+        config_file="$PROJECT_ROOT/config/production.env"
+    elif [[ -f "$SCRIPT_DIR/config.env" ]]; then
+        config_file="$SCRIPT_DIR/config.env"
+    elif [[ -f "$SCRIPT_DIR/../config/production.env" ]]; then
+        config_file="$SCRIPT_DIR/../config/production.env"
+    fi
+
     local service_file="/etc/systemd/system/datasync-turbo.service"
 
     sudo tee "$service_file" > /dev/null << EOF
@@ -272,7 +315,7 @@ After=network.target
 Type=oneshot
 User=$USER
 WorkingDirectory=$PROJECT_ROOT
-EnvironmentFile=$SCRIPT_DIR/config.env
+EnvironmentFile=$config_file
 ExecStart=$PROJECT_ROOT/scripts/datasync-s5cmd.sh
 
 [Install]
@@ -307,7 +350,7 @@ check_status() {
     log_step "Checking deployment status"
     echo
 
-    source "$SCRIPT_DIR/config.env" 2>/dev/null || true
+    find_and_source_config 2>/dev/null || true
 
     # Check s5cmd
     if command -v s5cmd &> /dev/null; then

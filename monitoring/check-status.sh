@@ -13,13 +13,23 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# Get script directory and load config
+# Get script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="$SCRIPT_DIR/../config.env"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-if [ -f "$CONFIG_FILE" ]; then
-    source "$CONFIG_FILE"
-fi
+# Try multiple config locations (v1.2.0+ compatibility)
+CONFIG_LOADED=false
+for config_file in \
+    "$PROJECT_ROOT/config/production.env" \
+    "$SCRIPT_DIR/../config.env" \
+    "$PROJECT_ROOT/examples/production/config.env" \
+    "$PROJECT_ROOT/deployment/config.env"; do
+    if [ -f "$config_file" ]; then
+        source "$config_file"
+        CONFIG_LOADED=true
+        break
+    fi
+done
 
 # Defaults
 LOG_DIR="${LOG_DIR:-/var/log/datasync-turbo}"

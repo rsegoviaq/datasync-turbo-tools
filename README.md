@@ -26,7 +26,7 @@ Upload speeds that saturate high-bandwidth networks:
 
 ## 📋 Project Status
 
-**Current Status:** 🟢 **Production Ready (v1.0.0)**
+**Current Status:** 🟢 **Production Ready (v1.2.0)**
 
 This project is production-ready and available for deployment. The complete implementation includes:
 - ✅ High-performance s5cmd upload scripts
@@ -74,8 +74,8 @@ DataSync Turbo Tools is a companion project to [datasync-client-deployment](http
 datasync-turbo-tools/
 ├── packages/              # Distribution packages
 │   └── production-package/
-│       ├── datasync-production-v1.0.0/     # Ready-to-deploy package
-│       ├── datasync-production-v1.0.0.tar.gz
+│       ├── datasync-production-v1.2.0/     # Ready-to-deploy package
+│       ├── datasync-production-v1.2.0.tar.gz
 │       └── build.sh                         # Package builder
 ├── scripts/               # Core upload scripts
 │   └── datasync-s5cmd.sh                   # Main s5cmd script
@@ -232,7 +232,7 @@ Comprehensive guides for development, maintenance, and contribution:
 
 ### Core Documentation
 - **[README.md](README.md)** - Project overview and quick start (this file)
-- **[CHANGELOG.md](packages/production-package/datasync-production-v1.0.0/CHANGELOG.md)** - Version history and release notes
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
 - **[LICENSE](LICENSE)** - MIT License
 
 ### Development Guides
@@ -308,7 +308,9 @@ For questions, issues, or feature requests:
 - [x] Phase 3.4: Testing suite
 - [x] Phase 3.5: Documentation
 - [x] Phase 3.6: Example deployments
-- [x] **v1.0.0 Release** ← **Complete!**
+- [x] **v1.0.0 Release** - Initial production release
+- [x] **v1.1.0 Release** - Direct AWS credentials support
+- [x] **v1.2.0 Release** - Quick install & simplified setup ← **Latest!**
 
 **Future Enhancements:**
 - [ ] Web dashboard for monitoring

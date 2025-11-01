@@ -33,7 +33,7 @@ readonly BOLD='\033[1m'
 
 # Configuration paths
 readonly CONFIG_DIR="$SCRIPT_DIR/config"
-readonly CONFIG_FILE="$CONFIG_DIR/production.env"
+readonly CONFIG_FILE="$CONFIG_DIR/s5cmd.env"
 readonly CONFIG_TEMPLATE="$CONFIG_DIR/production.env.template"
 readonly DEPLOYMENT_CONFIG_LINK="$SCRIPT_DIR/deployment/config.env"
 
@@ -485,7 +485,7 @@ write_configuration() {
 
         echo
         echo "# S3 Configuration"
-        echo "BUCKET_NAME=\"$BUCKET_NAME_INPUT\""
+        echo "S3_BUCKET=\"$BUCKET_NAME_INPUT\""
         if [[ -n "$S3_SUBDIRECTORY_INPUT" ]]; then
             echo "S3_SUBDIRECTORY=\"$S3_SUBDIRECTORY_INPUT\""
         else
@@ -521,7 +521,7 @@ write_configuration() {
 
     # Create symlink for deployment script compatibility
     if [[ ! -e "$DEPLOYMENT_CONFIG_LINK" ]]; then
-        ln -sf "../config/production.env" "$DEPLOYMENT_CONFIG_LINK"
+        ln -sf "../config/s5cmd.env" "$DEPLOYMENT_CONFIG_LINK"
         log_success "Created deployment config symlink"
     fi
 

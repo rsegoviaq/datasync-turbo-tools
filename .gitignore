@@ -52,6 +52,10 @@ tmp/
 *.zip
 *.tgz
 
+# Extracted package directories (build artifacts)
+packages/production-package/datasync-production-*/
+packages/test-package/datasync-test-*/
+
 # Backup files
 *.backup
 *.bak

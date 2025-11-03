@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Status](https://img.shields.io/badge/status-production-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-1.2.0-blue)]()
+[![Version](https://img.shields.io/badge/version-1.2.1-blue)]()
 
 ## 🚀 Performance
 
@@ -26,7 +26,7 @@ Upload speeds that saturate high-bandwidth networks:
 
 ## 📋 Project Status
 
-**Current Status:** 🟢 **Production Ready (v1.2.0)**
+**Current Status:** 🟢 **Production Ready (v1.2.1)**
 
 This project is production-ready and available for deployment. The complete implementation includes:
 - ✅ High-performance s5cmd upload scripts
@@ -320,8 +320,8 @@ For questions, issues, or feature requests:
 
 ---
 
-**Version:** 1.2.0
-**Release Date:** 2025-10-31
+**Version:** 1.2.1
+**Release Date:** 2025-11-03
 **Status:** Production Ready
 
 See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for development history.

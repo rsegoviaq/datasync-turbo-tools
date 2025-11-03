@@ -17,7 +17,7 @@ set -euo pipefail
 
 # Script metadata
 SCRIPT_NAME="datasync-awscli"
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="1.2.1"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 

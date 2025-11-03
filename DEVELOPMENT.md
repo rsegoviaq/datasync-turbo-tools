@@ -142,6 +142,27 @@
 - Fixed config path resolution issues
 - Improved user experience and documentation
 
+### Phase 5: Cross-Platform Compatibility
+**Completed:** November 3, 2025
+
+#### Phase 5.1: macOS Compatibility Fix
+- **Issue**: Scripts hanging on "Calculating source directory size..." on macOS
+- **Root Cause**: macOS uses BSD `du` which lacks GNU-specific `-b` flag
+- **Solution**: Added OS detection (`$OSTYPE`) to use platform-appropriate commands
+  - macOS: `find` + `stat -f%z` for byte-accurate directory sizing
+  - Linux: Original `du -sb` command
+- **Files Modified**:
+  - `scripts/datasync-s5cmd.sh:296-314` - calculate_source_size() function
+  - `scripts/datasync-awscli.sh:258-267` - BYTES_TRANSFERRED calculation
+  - `datasync-client-package/scripts/datasync-s5cmd.sh:270-289` - calculate_source_size() function
+- **Testing**: Validated on both Linux and macOS environments
+
+### Version 1.2.1 Release
+**Released:** November 3, 2025
+- macOS compatibility for directory size calculation
+- Cross-platform support (Linux, macOS, WSL2)
+- Unified codebase for all platforms
+
 ---
 
 ## Architecture Overview

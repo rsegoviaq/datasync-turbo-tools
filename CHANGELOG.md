@@ -5,6 +5,26 @@ All notable changes to DataSync Turbo Tools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2025-11-03
+
+### Fixed
+- **macOS Compatibility**: Fixed directory size calculation hanging on macOS systems
+  - **Issue**: Scripts would hang at "Calculating source directory size..." on macOS
+  - **Root Cause**: macOS uses BSD `du` which doesn't support GNU-specific `-b` flag
+  - **Solution**: Added OS detection to use appropriate command for each platform
+    - On macOS (darwin): Uses `find` + `stat -f%z` for directory size calculation
+    - On Linux: Continues using `du -sb` command
+  - **Files Updated**:
+    - `scripts/datasync-s5cmd.sh:296-314` (calculate_source_size function)
+    - `scripts/datasync-awscli.sh:258-267` (directory size calculation)
+    - `datasync-client-package/scripts/datasync-s5cmd.sh:270-289` (calculate_source_size function)
+  - Now fully compatible with both Linux and macOS environments
+
+### Changed
+- Updated script versions across all files to maintain consistency (1.2.1)
+
+---
+
 ## [1.2.0] - 2025-10-31
 
 ### Added

@@ -272,7 +272,14 @@ calculate_source_size() {
     log_info "Calculating source directory size..."
 
     local size_bytes
-    size_bytes=$(du -sb "$SOURCE_DIR" 2>/dev/null | awk '{print $1}')
+    # macOS uses BSD du which doesn't support -b flag, so detect OS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS: use find + stat
+        size_bytes=$(find "$SOURCE_DIR" -type f -exec stat -f%z {} \; 2>/dev/null | awk '{s+=$1} END {print s}')
+    else
+        # Linux: use du -sb
+        size_bytes=$(du -sb "$SOURCE_DIR" 2>/dev/null | awk '{print $1}')
+    fi
 
     local size_human
     size_human=$(du -sh "$SOURCE_DIR" 2>/dev/null | awk '{print $1}')

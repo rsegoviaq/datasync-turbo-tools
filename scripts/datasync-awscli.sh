@@ -256,7 +256,14 @@ perform_sync() {
     log_info "Upload finished at: $end_time_iso"
 
     # Calculate transferred data
-    BYTES_TRANSFERRED=$(du -sb "$SOURCE_DIR" 2>/dev/null | awk '{print $1}')
+    # macOS uses BSD du which doesn't support -b flag, so detect OS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS: use find + stat
+        BYTES_TRANSFERRED=$(find "$SOURCE_DIR" -type f -exec stat -f%z {} \; 2>/dev/null | awk '{s+=$1} END {print s}')
+    else
+        # Linux: use du -sb
+        BYTES_TRANSFERRED=$(du -sb "$SOURCE_DIR" 2>/dev/null | awk '{print $1}')
+    fi
     FILES_SYNCED=$(find "$SOURCE_DIR" -type f | wc -l)
 
     return 0

@@ -163,6 +163,29 @@
 - Cross-platform support (Linux, macOS, WSL2)
 - Unified codebase for all platforms
 
+#### Phase 5.2: Disk Space Check Compatibility
+- **Issue**: Installation failing on macOS with "df: illegal option -- B" error
+- **Root Cause**: macOS uses BSD `df` which doesn't support GNU-specific `-B` flag
+- **Solution**: Added OS detection (`$OSTYPE`) to use platform-appropriate df commands
+  - macOS: `df -g` (lowercase g flag for gigabytes)
+  - Linux: `df -BG` (block size in gigabytes)
+- **Files Modified**:
+  - `quick-install.sh:131-137` - disk space check in prerequisites
+  - `config/config-validator.sh:423-429` - disk space validation function
+  - `monitoring/alerts.sh:160-167` - disk space monitoring
+  - `monitoring/check-status.sh:135-141` - status check disk space
+  - `examples/production/deploy.sh:211-218` - deployment validation
+  - `examples/production/monitoring/*.sh` - production monitoring scripts
+  - `packages/production-package/datasync-production-v1.2.1/*` - all package scripts
+- **Testing**: Validated on both Linux and macOS environments
+
+### Version 1.2.2 Release
+**Released:** November 7, 2025
+- macOS compatibility for df disk space checks across all scripts
+- Fixed installation and validation errors on macOS
+- Enhanced cross-platform support (Linux, macOS, WSL2)
+- All monitoring and deployment scripts now work seamlessly on macOS
+
 ---
 
 ## Architecture Overview
@@ -764,5 +787,5 @@ iostat -x 1            # Disk I/O
 
 ---
 
-**Last Updated:** 2025-10-29
-**Document Version:** 1.0.0
+**Last Updated:** 2025-11-07
+**Document Version:** 1.2.2

@@ -5,6 +5,32 @@ All notable changes to DataSync Turbo Tools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2025-11-07
+
+### Fixed
+- **macOS Disk Space Check Compatibility**: Fixed `df: illegal option -- B` error during installation on macOS
+  - **Issue**: Installation script failing at disk space check with "illegal option -- B" error
+  - **Root Cause**: macOS uses BSD `df` which doesn't support GNU-specific `-B` flag for block size
+  - **Solution**: Added OS detection (`$OSTYPE`) to use platform-appropriate df commands
+    - On macOS (darwin): Uses `df -g` (lowercase g flag for gigabytes)
+    - On Linux: Continues using `df -BG` (block size in gigabytes)
+  - **Files Updated**:
+    - `quick-install.sh:131-137` - disk space check in prerequisites
+    - `config/config-validator.sh:423-429` - disk space validation function
+    - `monitoring/alerts.sh:160-167` - disk space monitoring
+    - `monitoring/check-status.sh:135-141` - status check disk space
+    - `examples/production/deploy.sh:211-218` - deployment validation
+    - `examples/production/monitoring/alerts.sh:160-167` - production monitoring
+    - `examples/production/monitoring/check-status.sh:125-131` - production status checks
+  - Now installation and all monitoring scripts work seamlessly on macOS
+
+### Improved
+- Enhanced cross-platform compatibility (Linux, macOS, WSL2)
+- All disk space checks now platform-aware across entire codebase
+- Better error handling and validation during installation
+
+---
+
 ## [1.2.1] - 2025-11-03
 
 ### Fixed

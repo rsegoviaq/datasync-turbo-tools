@@ -5,6 +5,25 @@ All notable changes to DataSync Turbo Tools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2025-11-07
+
+### Fixed
+- **macOS Bash Version Compatibility**: Relaxed bash version requirement to support macOS default installation
+  - **Issue**: Quick install script failing on macOS with "Bash 4.0 or higher is required (found: 3.2.57)"
+  - **Root Cause**: macOS ships with Bash 3.2 due to GPL v3 licensing restrictions, but script unnecessarily required Bash 4.0+
+  - **Solution**: Added OS-specific bash version requirements
+    - On macOS (darwin): Requires Bash 3.0+ (compatible with system default 3.2)
+    - On Linux: Continues requiring Bash 4.0+ (standard across modern distributions)
+  - **Files Updated**:
+    - `quick-install.sh:105-116` - OS-aware bash version check in prerequisites
+  - **Testing**: All existing functionality works correctly with Bash 3.2 on macOS
+  - Now installation works seamlessly on macOS without requiring users to install newer bash via Homebrew
+
+### Changed
+- Updated version strings from 1.2.0 to 1.2.2 in quick-install.sh banners and comments
+
+---
+
 ## [1.2.2] - 2025-11-07
 
 ### Fixed

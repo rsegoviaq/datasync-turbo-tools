@@ -186,6 +186,23 @@
 - Enhanced cross-platform support (Linux, macOS, WSL2)
 - All monitoring and deployment scripts now work seamlessly on macOS
 
+#### Phase 5.3: Bash Version Compatibility
+- **Issue**: Quick install script failing on macOS with "Bash 4.0 or higher is required (found: 3.2.57)"
+- **Root Cause**: macOS ships with Bash 3.2 due to GPL v3 licensing restrictions, script unnecessarily required Bash 4.0+
+- **Solution**: Added OS-specific bash version requirements
+  - macOS: Requires Bash 3.0+ (compatible with system default 3.2)
+  - Linux: Continues requiring Bash 4.0+ (standard across modern distributions)
+- **Files Modified**:
+  - `quick-install.sh:105-116` - OS-aware bash version check in prerequisites
+- **Testing**: All existing functionality works correctly with Bash 3.2 on macOS
+
+### Version 1.2.3 Release
+**Released:** November 7, 2025
+- macOS Bash version compatibility fix
+- Relaxed bash version requirement to support macOS default installation
+- Quick install now works seamlessly on macOS without requiring Homebrew bash installation
+- Updated version strings throughout quick-install.sh
+
 ---
 
 ## Architecture Overview
@@ -788,4 +805,4 @@ iostat -x 1            # Disk I/O
 ---
 
 **Last Updated:** 2025-11-07
-**Document Version:** 1.2.2
+**Document Version:** 1.2.3

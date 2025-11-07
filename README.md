@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Status](https://img.shields.io/badge/status-production-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-1.2.2-blue)]()
+[![Version](https://img.shields.io/badge/version-1.2.3-blue)]()
 
 ## 🚀 Performance
 
@@ -26,7 +26,7 @@ Upload speeds that saturate high-bandwidth networks:
 
 ## 📋 Project Status
 
-**Current Status:** 🟢 **Production Ready (v1.2.2)**
+**Current Status:** 🟢 **Production Ready (v1.2.3)**
 
 This project is production-ready and available for deployment. The complete implementation includes:
 - ✅ High-performance s5cmd upload scripts
@@ -74,8 +74,8 @@ DataSync Turbo Tools is a companion project to [datasync-client-deployment](http
 datasync-turbo-tools/
 ├── packages/              # Distribution packages
 │   └── production-package/
-│       ├── datasync-production-v1.2.0/     # Ready-to-deploy package
-│       ├── datasync-production-v1.2.0.tar.gz
+│       ├── datasync-production-v1.2.3/     # Ready-to-deploy package
+│       ├── datasync-production-v1.2.3.tar.gz
 │       └── build.sh                         # Package builder
 ├── scripts/               # Core upload scripts
 │   └── datasync-s5cmd.sh                   # Main s5cmd script
@@ -105,8 +105,8 @@ The fastest way to get started is with our interactive installer:
 ```bash
 # Extract production package
 cd packages/production-package
-tar xzf datasync-production-v1.2.0.tar.gz
-cd datasync-production-v1.2.0
+tar xzf datasync-production-v1.2.3.tar.gz
+cd datasync-production-v1.2.3
 
 # Run quick installer (one command!)
 ./quick-install.sh
@@ -131,8 +131,8 @@ If you prefer step-by-step control:
 ```bash
 # Extract production package
 cd packages/production-package
-tar xzf datasync-production-v1.2.0.tar.gz
-cd datasync-production-v1.2.0
+tar xzf datasync-production-v1.2.3.tar.gz
+cd datasync-production-v1.2.3
 
 # Run installer
 ./install.sh
@@ -310,7 +310,10 @@ For questions, issues, or feature requests:
 - [x] Phase 3.6: Example deployments
 - [x] **v1.0.0 Release** - Initial production release
 - [x] **v1.1.0 Release** - Direct AWS credentials support
-- [x] **v1.2.0 Release** - Quick install & simplified setup ← **Latest!**
+- [x] **v1.2.0 Release** - Quick install & simplified setup
+- [x] **v1.2.1 Release** - macOS directory size compatibility
+- [x] **v1.2.2 Release** - macOS disk space check compatibility
+- [x] **v1.2.3 Release** - macOS bash version compatibility ← **Latest!**
 
 **Future Enhancements:**
 - [ ] Web dashboard for monitoring
@@ -320,7 +323,7 @@ For questions, issues, or feature requests:
 
 ---
 
-**Version:** 1.2.2
+**Version:** 1.2.3
 **Release Date:** 2025-11-07
 **Status:** Production Ready
 

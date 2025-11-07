@@ -208,7 +208,14 @@ validate() {
     fi
 
     # Check disk space
-    local free_space=$(df -BG "$SOURCE_DIR" | awk 'NR==2 {print $4}' | sed 's/G//')
+    local free_space
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS: use -g flag (lowercase)
+        free_space=$(df -g "$SOURCE_DIR" | awk 'NR==2 {print $4}')
+    else
+        # Linux: use -BG flag
+        free_space=$(df -BG "$SOURCE_DIR" | awk 'NR==2 {print $4}' | sed 's/G//')
+    fi
     if [ "$free_space" -lt "${MIN_FREE_DISK_SPACE_GB:-10}" ]; then
         log_error "Insufficient disk space: ${free_space}GB (minimum: ${MIN_FREE_DISK_SPACE_GB}GB)"
         ((errors++))

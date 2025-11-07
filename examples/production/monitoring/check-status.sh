@@ -122,7 +122,13 @@ fi
 
 # Check disk space
 if [ -n "${SOURCE_DIR:-}" ] && [ -d "$SOURCE_DIR" ]; then
-    free_space=$(df -BG "$SOURCE_DIR" | awk 'NR==2 {print $4}' | sed 's/G//')
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS: use -g flag (lowercase)
+        free_space=$(df -g "$SOURCE_DIR" | awk 'NR==2 {print $4}')
+    else
+        # Linux: use -BG flag
+        free_space=$(df -BG "$SOURCE_DIR" | awk 'NR==2 {print $4}' | sed 's/G//')
+    fi
     if [ "$free_space" -lt "${MIN_FREE_DISK_SPACE_GB:-10}" ]; then
         log_error "Low disk space: ${free_space}GB (minimum: ${MIN_FREE_DISK_SPACE_GB:-10}GB)"
     else

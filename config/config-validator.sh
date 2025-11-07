@@ -420,7 +420,13 @@ validate_disk_space() {
 
     # Get available space in GB
     local free_space_gb
-    free_space_gb=$(df -BG "$dir_path" 2>/dev/null | awk 'NR==2 {print $4}' | sed 's/G//' || echo "0")
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS: use -g flag (lowercase)
+        free_space_gb=$(df -g "$dir_path" 2>/dev/null | awk 'NR==2 {print $4}' || echo "0")
+    else
+        # Linux: use -BG flag
+        free_space_gb=$(df -BG "$dir_path" 2>/dev/null | awk 'NR==2 {print $4}' | sed 's/G//' || echo "0")
+    fi
 
     if [[ "$free_space_gb" -lt "$min_space_gb" ]]; then
         v_log_error "Insufficient disk space: ${free_space_gb}GB available, ${min_space_gb}GB required"

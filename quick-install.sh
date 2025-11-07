@@ -128,7 +128,13 @@ check_prerequisites() {
 
     # Check disk space
     local free_space_gb
-    free_space_gb=$(df -BG "$SCRIPT_DIR" | awk 'NR==2 {print $4}' | sed 's/G//')
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS: use -g flag (lowercase)
+        free_space_gb=$(df -g "$SCRIPT_DIR" | awk 'NR==2 {print $4}')
+    else
+        # Linux: use -BG flag
+        free_space_gb=$(df -BG "$SCRIPT_DIR" | awk 'NR==2 {print $4}' | sed 's/G//')
+    fi
     if [[ "$free_space_gb" -lt 1 ]]; then
         log_warning "Low disk space: ${free_space_gb}GB available"
     else

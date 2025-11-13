@@ -451,27 +451,31 @@ perform_sync() {
     local output_file="${TEMP_DIR}/s5cmd_output.txt"
 
     # Execute and capture output with real-time progress tracking
+    # Use a temp file to track progress across subshells
+    local progress_file="${TEMP_DIR}/progress.txt"
+    echo "0" > "$progress_file"
     FILES_UPLOADED_COUNT=0
     LAST_PROGRESS_UPDATE=0
     local upload_start_time=$(date +%s)
 
-    if eval "$s5cmd_cmd" 2>&1 | while IFS= read -r line; do
-        # Save all output to file
-        echo "$line" >> "$output_file"
-
+    # Execute s5cmd and capture output
+    eval "$s5cmd_cmd" 2>&1 | tee "$output_file" | while IFS= read -r line; do
         # Parse s5cmd output for completed uploads
         # s5cmd outputs lines like "cp s3://bucket/file" for each completed upload
         if [[ "$line" =~ ^cp[[:space:]] ]] || [[ "$line" =~ uploaded ]]; then
-            ((FILES_UPLOADED_COUNT++))
+            # Increment counter in temp file (to persist across subshells)
+            local count=$(cat "$progress_file")
+            count=$((count + 1))
+            echo "$count" > "$progress_file"
 
             # Calculate progress if total is known
             if [ "$TOTAL_FILES_TO_UPLOAD" -gt 0 ]; then
-                local progress_percent=$((FILES_UPLOADED_COUNT * 100 / TOTAL_FILES_TO_UPLOAD))
-                local files_since_update=$((FILES_UPLOADED_COUNT - LAST_PROGRESS_UPDATE))
+                local progress_percent=$((count * 100 / TOTAL_FILES_TO_UPLOAD))
+                local files_since_update=$((count - LAST_PROGRESS_UPDATE))
 
                 # Show progress at intervals
                 # Update on: first file, every N files, or every N percent
-                if [ $FILES_UPLOADED_COUNT -eq 1 ] || \
+                if [ $count -eq 1 ] || \
                    [ $files_since_update -ge $PROGRESS_UPDATE_INTERVAL ] || \
                    [ $((progress_percent % PROGRESS_PERCENT_INTERVAL)) -eq 0 -a $progress_percent -ne $((LAST_PROGRESS_UPDATE * 100 / TOTAL_FILES_TO_UPLOAD)) ]; then
 
@@ -479,19 +483,26 @@ perform_sync() {
                     local current_time=$(date +%s)
                     local elapsed=$((current_time - upload_start_time))
                     local throughput=0
+                    # Avoid division by zero, set minimum 1 file/sec for instant uploads
                     if [ $elapsed -gt 0 ]; then
-                        throughput=$((FILES_UPLOADED_COUNT / elapsed))
+                        throughput=$((count / elapsed))
+                    elif [ $count -gt 0 ]; then
+                        throughput=$count  # Show actual count for instant uploads
                     fi
 
-                    show_upload_progress "$FILES_UPLOADED_COUNT" "$TOTAL_FILES_TO_UPLOAD" "$throughput"
-                    LAST_PROGRESS_UPDATE=$FILES_UPLOADED_COUNT
+                    show_upload_progress "$count" "$TOTAL_FILES_TO_UPLOAD" "$throughput"
+                    LAST_PROGRESS_UPDATE=$count
                 fi
             fi
         fi
+    done
 
-        # Pass through output for real-time display
-        echo "$line"
-    done; then
+    # Get final upload count from temp file
+    FILES_UPLOADED_COUNT=$(cat "$progress_file" 2>/dev/null || echo "0")
+
+    # Check if sync was successful
+    local exit_code=$?
+    if [ $exit_code -eq 0 ]; then
         SYNC_STATUS="success"
 
         # Show final progress if we have tracked files

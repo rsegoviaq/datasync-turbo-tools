@@ -54,6 +54,13 @@ BYTES_TRANSFERRED=0
 SYNC_STATUS="unknown"
 TEMP_DIR=""
 
+# Progress tracking variables
+TOTAL_FILES_TO_UPLOAD=0
+FILES_UPLOADED_COUNT=0
+LAST_PROGRESS_UPDATE=0
+PROGRESS_UPDATE_INTERVAL=10  # Update every N files
+PROGRESS_PERCENT_INTERVAL=5  # Or every N percent
+
 # Logging functions
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $(date +'%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
@@ -77,6 +84,42 @@ log_header() {
     echo -e "${CYAN}$1${NC}" | tee -a "$LOG_FILE"
     echo -e "${CYAN}=========================================${NC}" | tee -a "$LOG_FILE"
     echo "" | tee -a "$LOG_FILE"
+}
+
+# Show upload progress with detailed metrics
+# Args: $1=files_uploaded, $2=total_files, $3=throughput_files_per_sec
+show_upload_progress() {
+    local files_uploaded=$1
+    local total_files=$2
+    local throughput=$3
+
+    if [ "$total_files" -eq 0 ]; then
+        return
+    fi
+
+    local percent=$((files_uploaded * 100 / total_files))
+
+    # Calculate ETA
+    local eta_string="ETA: calculating..."
+    if [ "$throughput" -gt 0 ]; then
+        local remaining_files=$((total_files - files_uploaded))
+        local eta_seconds=$((remaining_files / throughput))
+        local eta_minutes=$((eta_seconds / 60))
+        local eta_display
+
+        if [ $eta_minutes -ge 60 ]; then
+            local eta_hours=$((eta_minutes / 60))
+            local eta_mins=$((eta_minutes % 60))
+            eta_display="${eta_hours}h${eta_mins}m"
+        elif [ $eta_minutes -gt 0 ]; then
+            eta_display="${eta_minutes}m"
+        else
+            eta_display="${eta_seconds}s"
+        fi
+        eta_string="ETA: $eta_display"
+    fi
+
+    log_info "Progress: $files_uploaded/$total_files files ($percent%) | Speed: $throughput files/sec | $eta_string"
 }
 
 # Cleanup on exit
@@ -407,13 +450,63 @@ perform_sync() {
     TEMP_DIR=$(mktemp -d)
     local output_file="${TEMP_DIR}/s5cmd_output.txt"
 
-    # Execute and capture output
-    if eval "$s5cmd_cmd" 2>&1 | tee "$output_file"; then
+    # Execute and capture output with real-time progress tracking
+    FILES_UPLOADED_COUNT=0
+    LAST_PROGRESS_UPDATE=0
+    local upload_start_time=$(date +%s)
+
+    if eval "$s5cmd_cmd" 2>&1 | while IFS= read -r line; do
+        # Save all output to file
+        echo "$line" >> "$output_file"
+
+        # Parse s5cmd output for completed uploads
+        # s5cmd outputs lines like "cp s3://bucket/file" for each completed upload
+        if [[ "$line" =~ ^cp[[:space:]] ]] || [[ "$line" =~ uploaded ]]; then
+            ((FILES_UPLOADED_COUNT++))
+
+            # Calculate progress if total is known
+            if [ "$TOTAL_FILES_TO_UPLOAD" -gt 0 ]; then
+                local progress_percent=$((FILES_UPLOADED_COUNT * 100 / TOTAL_FILES_TO_UPLOAD))
+                local files_since_update=$((FILES_UPLOADED_COUNT - LAST_PROGRESS_UPDATE))
+
+                # Show progress at intervals
+                # Update on: first file, every N files, or every N percent
+                if [ $FILES_UPLOADED_COUNT -eq 1 ] || \
+                   [ $files_since_update -ge $PROGRESS_UPDATE_INTERVAL ] || \
+                   [ $((progress_percent % PROGRESS_PERCENT_INTERVAL)) -eq 0 -a $progress_percent -ne $((LAST_PROGRESS_UPDATE * 100 / TOTAL_FILES_TO_UPLOAD)) ]; then
+
+                    # Calculate throughput
+                    local current_time=$(date +%s)
+                    local elapsed=$((current_time - upload_start_time))
+                    local throughput=0
+                    if [ $elapsed -gt 0 ]; then
+                        throughput=$((FILES_UPLOADED_COUNT / elapsed))
+                    fi
+
+                    show_upload_progress "$FILES_UPLOADED_COUNT" "$TOTAL_FILES_TO_UPLOAD" "$throughput"
+                    LAST_PROGRESS_UPDATE=$FILES_UPLOADED_COUNT
+                fi
+            fi
+        fi
+
+        # Pass through output for real-time display
+        echo "$line"
+    done; then
         SYNC_STATUS="success"
-        log_success "Sync completed successfully"
+
+        # Show final progress if we have tracked files
+        if [ "$TOTAL_FILES_TO_UPLOAD" -gt 0 ]; then
+            log_success "Upload completed: $FILES_UPLOADED_COUNT/$TOTAL_FILES_TO_UPLOAD files (100%)"
+        else
+            log_success "Sync completed successfully"
+        fi
     else
         SYNC_STATUS="failed"
-        log_error "Sync failed"
+        if [ "$FILES_UPLOADED_COUNT" -gt 0 ]; then
+            log_error "Upload failed after $FILES_UPLOADED_COUNT files"
+        else
+            log_error "Sync failed"
+        fi
         return 1
     fi
 
@@ -557,9 +650,19 @@ main() {
     # Validate prerequisites
     validate_prerequisites
 
-    # Get source stats
-    calculate_source_size > /dev/null
-    count_source_files > /dev/null
+    # Get source stats and prepare for progress tracking
+    log_header "Calculating Upload Scope"
+    local source_size_bytes
+    source_size_bytes=$(calculate_source_size)
+    BYTES_TRANSFERRED=$source_size_bytes
+
+    TOTAL_FILES_TO_UPLOAD=$(count_source_files)
+
+    local source_size_human
+    source_size_human=$(du -sh "$SOURCE_DIR" 2>/dev/null | awk '{print $1}')
+
+    log_info "Preparing to upload $TOTAL_FILES_TO_UPLOAD files ($source_size_human)"
+    echo ""
 
     # Perform sync
     if perform_sync; then

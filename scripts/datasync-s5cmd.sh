@@ -87,11 +87,12 @@ log_header() {
 }
 
 # Show upload progress with detailed metrics
-# Args: $1=files_uploaded, $2=total_files, $3=throughput_files_per_sec
+# Args: $1=files_uploaded, $2=total_files, $3=bytes_uploaded, $4=elapsed_seconds
 show_upload_progress() {
     local files_uploaded=$1
     local total_files=$2
-    local throughput=$3
+    local bytes_uploaded=$3
+    local elapsed=$4
 
     if [ "$total_files" -eq 0 ]; then
         return
@@ -99,27 +100,40 @@ show_upload_progress() {
 
     local percent=$((files_uploaded * 100 / total_files))
 
-    # Calculate ETA
-    local eta_string="ETA: calculating..."
-    if [ "$throughput" -gt 0 ]; then
-        local remaining_files=$((total_files - files_uploaded))
-        local eta_seconds=$((remaining_files / throughput))
-        local eta_minutes=$((eta_seconds / 60))
-        local eta_display
-
-        if [ $eta_minutes -ge 60 ]; then
-            local eta_hours=$((eta_minutes / 60))
-            local eta_mins=$((eta_minutes % 60))
-            eta_display="${eta_hours}h${eta_mins}m"
-        elif [ $eta_minutes -gt 0 ]; then
-            eta_display="${eta_minutes}m"
-        else
-            eta_display="${eta_seconds}s"
-        fi
-        eta_string="ETA: $eta_display"
+    # Calculate throughput in MB/s
+    local throughput_mbps="0.0"
+    if [ "$elapsed" -gt 0 ] && [ "$bytes_uploaded" -gt 0 ]; then
+        # Use bc for floating point calculation: bytes / elapsed / 1048576 (bytes to MB)
+        throughput_mbps=$(echo "scale=2; $bytes_uploaded / $elapsed / 1048576" | bc)
     fi
 
-    log_info "Progress: $files_uploaded/$total_files files ($percent%) | Speed: $throughput files/sec | $eta_string"
+    # Calculate ETA based on bytes remaining
+    local eta_string="ETA: calculating..."
+    if [ "$elapsed" -gt 0 ] && [ "$BYTES_TRANSFERRED" -gt 0 ] && [ "$bytes_uploaded" -gt 0 ]; then
+        # bytes_per_second = bytes_uploaded / elapsed
+        # remaining_bytes = BYTES_TRANSFERRED - bytes_uploaded
+        # eta_seconds = remaining_bytes / bytes_per_second
+        local bytes_per_sec=$((bytes_uploaded / elapsed))
+        if [ "$bytes_per_sec" -gt 0 ]; then
+            local remaining_bytes=$((BYTES_TRANSFERRED - bytes_uploaded))
+            local eta_seconds=$((remaining_bytes / bytes_per_sec))
+            local eta_minutes=$((eta_seconds / 60))
+            local eta_display
+
+            if [ $eta_minutes -ge 60 ]; then
+                local eta_hours=$((eta_minutes / 60))
+                local eta_mins=$((eta_minutes % 60))
+                eta_display="${eta_hours}h${eta_mins}m"
+            elif [ $eta_minutes -gt 0 ]; then
+                eta_display="${eta_minutes}m"
+            else
+                eta_display="${eta_seconds}s"
+            fi
+            eta_string="ETA: $eta_display"
+        fi
+    fi
+
+    log_info "Progress: $files_uploaded/$total_files files ($percent%) | Speed: $throughput_mbps MB/s | $eta_string"
 }
 
 # Cleanup on exit
@@ -479,18 +493,21 @@ perform_sync() {
                    [ $files_since_update -ge $PROGRESS_UPDATE_INTERVAL ] || \
                    [ $((progress_percent % PROGRESS_PERCENT_INTERVAL)) -eq 0 -a $progress_percent -ne $((LAST_PROGRESS_UPDATE * 100 / TOTAL_FILES_TO_UPLOAD)) ]; then
 
-                    # Calculate throughput
-                    local current_time=$(date +%s)
-                    local elapsed=$((current_time - upload_start_time))
-                    local throughput=0
-                    # Avoid division by zero, set minimum 1 file/sec for instant uploads
-                    if [ $elapsed -gt 0 ]; then
-                        throughput=$((count / elapsed))
-                    elif [ $count -gt 0 ]; then
-                        throughput=$count  # Show actual count for instant uploads
+                    # Calculate bytes uploaded (proportional estimate based on file count)
+                    local bytes_uploaded=0
+                    if [ "$BYTES_TRANSFERRED" -gt 0 ] && [ "$TOTAL_FILES_TO_UPLOAD" -gt 0 ]; then
+                        bytes_uploaded=$((count * BYTES_TRANSFERRED / TOTAL_FILES_TO_UPLOAD))
                     fi
 
-                    show_upload_progress "$count" "$TOTAL_FILES_TO_UPLOAD" "$throughput"
+                    # Calculate elapsed time
+                    local current_time=$(date +%s)
+                    local elapsed=$((current_time - upload_start_time))
+                    # Set minimum 1 second to avoid division by zero
+                    if [ $elapsed -eq 0 ]; then
+                        elapsed=1
+                    fi
+
+                    show_upload_progress "$count" "$TOTAL_FILES_TO_UPLOAD" "$bytes_uploaded" "$elapsed"
                     LAST_PROGRESS_UPDATE=$count
                 fi
             fi

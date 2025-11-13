@@ -7,10 +7,28 @@ This document summarizes the testing and bug fixes for the upload progress monit
 The feature adds real-time upload progress tracking with the following capabilities:
 - Progress percentage display for entire upload package
 - File count tracking (uploaded/total)
-- Upload speed in files/sec
+- Upload speed in MB/s (megabytes per second)
 - ETA calculation with smart formatting (hours/minutes/seconds)
 - Progress updates every 10 files or 5% progress
 - Scrolling output for reliable log capture
+
+## Enhancements Made
+
+### Enhancement #1: Speed Indicator Changed from files/sec to MB/s
+**Rationale**: MB/s (megabytes per second) is a more intuitive and industry-standard metric for data transfer speeds than files/sec.
+
+**Changes**:
+- Modified `show_upload_progress()` function to calculate and display MB/s
+- Updated function signature to accept `bytes_uploaded` and `elapsed_seconds` instead of `throughput_files_per_sec`
+- Uses `bc` for floating-point calculation: `bytes / elapsed / 1048576`
+- Displays speed with 2 decimal places (e.g., "2.44 MB/s")
+
+**ETA Calculation Update**:
+- Changed from file-count based ETA to byte-based ETA
+- More accurate for datasets with varying file sizes
+- Calculates: `remaining_bytes / bytes_per_second = eta_seconds`
+
+**Files Changed**: `scripts/datasync-s5cmd.sh:89-137, 496-511`
 
 ## Bugs Found and Fixed
 
@@ -78,10 +96,10 @@ fi
 **Sample Progress Output**:
 ```
 [INFO] Preparing to upload 10 files (11M)
-[INFO] Progress: 1/10 files (10%) | Speed: 1 files/sec | ETA: 9s
-[INFO] Progress: 2/10 files (20%) | Speed: 2 files/sec | ETA: 4s
-[INFO] Progress: 5/10 files (50%) | Speed: 5 files/sec | ETA: 1s
-[INFO] Progress: 10/10 files (100%) | Speed: 10 files/sec | ETA: 0s
+[INFO] Progress: 1/10 files (10%) | Speed: 1.00 MB/s | ETA: 9s
+[INFO] Progress: 2/10 files (20%) | Speed: 2.00 MB/s | ETA: 4s
+[INFO] Progress: 5/10 files (50%) | Speed: 5.00 MB/s | ETA: 1s
+[INFO] Progress: 10/10 files (100%) | Speed: 10.00 MB/s | ETA: 0s
 [SUCCESS] Upload completed: 10/10 files (100%)
 ```
 
@@ -102,11 +120,11 @@ fi
 **Sample Progress Output**:
 ```
 [INFO] Preparing to upload 50 files (4.9M)
-[INFO] Progress: 1/50 files (2%) | Speed: 1 files/sec | ETA: 49s
-[INFO] Progress: 5/50 files (10%) | Speed: 5 files/sec | ETA: 9s
-[INFO] Progress: 10/50 files (20%) | Speed: 10 files/sec | ETA: 4s
-[INFO] Progress: 25/50 files (50%) | Speed: 25 files/sec | ETA: 1s
-[INFO] Progress: 50/50 files (100%) | Speed: 50 files/sec | ETA: 0s
+[INFO] Progress: 1/50 files (2%) | Speed: .09 MB/s | ETA: 49s
+[INFO] Progress: 5/50 files (10%) | Speed: .48 MB/s | ETA: 9s
+[INFO] Progress: 10/50 files (20%) | Speed: .97 MB/s | ETA: 4s
+[INFO] Progress: 25/50 files (50%) | Speed: 2.44 MB/s | ETA: 1s
+[INFO] Progress: 50/50 files (100%) | Speed: 4.88 MB/s | ETA: 0s
 [SUCCESS] Upload completed: 50/50 files (100%)
 ```
 

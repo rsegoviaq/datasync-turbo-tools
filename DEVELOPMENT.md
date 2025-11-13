@@ -290,10 +290,19 @@ nano config.env  # Edit with test settings
 
 ### Making Changes
 
-1. **Create Feature Branch** (if using git flow)
+1. **Create Feature Branch** (required for all features)
    ```bash
-   git checkout -b feature/your-feature-name
+   # For new features
+   git checkout -b feature/feature-name
+
+   # For bug fixes
+   git checkout -b fix/bug-name
+
+   # Example: For issue #3
+   git checkout -b feature/issue-3-upload-progress
    ```
+
+   **Important:** All feature development and bug fixes must be done in dedicated branches, not directly on master.
 
 2. **Make Changes**
    - Edit relevant scripts
@@ -322,6 +331,17 @@ nano config.env  # Edit with test settings
    ```bash
    git add .
    git commit -m "feat: description of changes"
+   ```
+
+6. **Push Feature Branch**
+   ```bash
+   # Push feature branch to remote
+   git push -u origin feature/your-feature-name
+
+   # If ready to merge (after testing and review)
+   git checkout master
+   git merge feature/your-feature-name
+   git push origin master
    ```
 
 ### Testing Checklist

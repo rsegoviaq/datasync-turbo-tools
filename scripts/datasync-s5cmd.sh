@@ -18,6 +18,7 @@
 #     S3_BUCKET             - S3 bucket name
 #     S3_SUBDIRECTORY       - S3 prefix/subdirectory
 #     AWS_PROFILE           - AWS profile to use
+#     AWS_REGION            - AWS region (required for s5cmd)
 #     S5CMD_CONCURRENCY     - Parallel operations (default: 64)
 #     S5CMD_PART_SIZE       - Multipart chunk size (default: 64MB)
 #     S5CMD_NUM_WORKERS     - Worker goroutines (default: 32)
@@ -29,7 +30,7 @@ set -euo pipefail
 
 # Script metadata
 SCRIPT_NAME="datasync-s5cmd"
-SCRIPT_VERSION="1.3.0"
+SCRIPT_VERSION="1.3.1"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
@@ -244,6 +245,11 @@ load_configuration() {
     export S5CMD_CHECKSUM="${S5CMD_CHECKSUM:-CRC64NVME}"
     export S3_STORAGE_CLASS="${S3_STORAGE_CLASS:-INTELLIGENT_TIERING}"
 
+    # Export AWS_REGION if set (required for s5cmd)
+    if [ -n "${AWS_REGION:-}" ]; then
+        export AWS_REGION
+    fi
+
     # Display configuration
     log_info "Configuration:"
     log_info "  Source:            ${SOURCE_DIR:-<not set>}"
@@ -258,6 +264,7 @@ load_configuration() {
     else
         log_info "  AWS Auth:          Default credentials chain"
     fi
+    log_info "  AWS Region:        ${AWS_REGION:-<not set>}"
 
     log_info "  Concurrency:       $S5CMD_CONCURRENCY"
     log_info "  Part Size:         $S5CMD_PART_SIZE"

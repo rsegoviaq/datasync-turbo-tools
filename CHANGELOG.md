@@ -5,6 +5,27 @@ All notable changes to DataSync Turbo Tools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2025-11-18
+
+### Fixed
+- **s5cmd AWS Region Configuration**: Fixed "MissingEndpoint" error when accessing S3 buckets
+  - **Issue**: s5cmd failed with "MissingEndpoint: 'Endpoint' configuration is required for this service"
+  - **Root Cause**: s5cmd requires `AWS_REGION` environment variable to be explicitly set, even when using AWS profiles. Unlike AWS CLI, it doesn't automatically read region from profile configuration.
+  - **Solution**:
+    - Modified `quick-install.sh` to detect and extract region from AWS profile configuration
+    - Added region prompt for direct credentials authentication method
+    - Export `AWS_REGION` environment variable before s5cmd bucket validation
+    - Added `AWS_REGION` to generated config files with explanatory comment
+    - Updated `datasync-s5cmd.sh` to export AWS_REGION if set in config
+    - Updated config template (`config/s5cmd.env.template`) to mark AWS_REGION as REQUIRED
+    - Added AWS_REGION display in configuration output for visibility
+
+### Changed
+- Configuration output now displays AWS Region for troubleshooting purposes
+- Config template updated with clearer documentation about AWS_REGION requirement
+
+---
+
 ## [1.3.0] - 2025-11-13
 
 ### Added

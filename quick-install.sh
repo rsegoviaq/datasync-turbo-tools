@@ -368,7 +368,14 @@ configure_s3() {
 
         # Test bucket access
         log_info "Testing S3 bucket access: $BUCKET_NAME_INPUT"
-        if s5cmd --stat ls "s3://$BUCKET_NAME_INPUT/" &>/dev/null; then
+
+        # Build s5cmd command with appropriate authentication
+        local s5cmd_test_cmd="s5cmd"
+        if [[ "$AWS_AUTH_METHOD" == "profile" ]]; then
+            s5cmd_test_cmd="s5cmd --profile $AWS_PROFILE_VALUE"
+        fi
+
+        if $s5cmd_test_cmd ls "s3://$BUCKET_NAME_INPUT/" &>/dev/null; then
             log_success "S3 bucket access validated successfully"
             break
         else

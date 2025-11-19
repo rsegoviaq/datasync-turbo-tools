@@ -5,6 +5,52 @@ All notable changes to DataSync Turbo Tools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-11-13
+
+### Added
+- **Real-Time Upload Progress Monitoring** (Issue #3)
+  - Live progress tracking with percentage completion (e.g., "Progress: 25/50 files (50%)")
+  - Upload speed in MB/s with 2 decimal precision (e.g., "Speed: 2.44 MB/s")
+  - Smart ETA calculation with human-readable format (hours/minutes/seconds)
+  - Progress updates every 10 files or 5% completion for optimal visibility
+  - File count tracking (uploaded/total files)
+  - Byte-based speed and ETA calculations for accuracy with varying file sizes
+
+  **Example Output**:
+  ```
+  [INFO] Preparing to upload 50 files (4.9M)
+  [INFO] Progress: 10/50 files (20%) | Speed: 0.97 MB/s | ETA: 4s
+  [INFO] Progress: 25/50 files (50%) | Speed: 2.44 MB/s | ETA: 1s
+  [INFO] Progress: 50/50 files (100%) | Speed: 4.88 MB/s | ETA: 0s
+  [SUCCESS] Upload completed: 50/50 files (100%)
+  ```
+
+### Fixed
+- **Progress Tracking Variable Scope**: Fixed issue where final upload count showed 0 files instead of actual count
+  - Used temporary file to persist progress counter across subshell boundaries
+  - Final completion message now correctly displays "N/N files (100%)"
+
+- **Speed Calculation for Fast Uploads**: Fixed division-by-zero errors when uploads complete in < 1 second
+  - Added minimum elapsed time of 1 second to prevent calculation errors
+  - Speed metrics now display correctly even for rapid uploads
+
+- **Output Capture**: Enhanced real-time display while capturing logs
+  - Changed from separate file writes to using `tee` command
+  - Maintains real-time progress visibility with complete log capture
+
+### Changed
+- Progress tracking now uses MB/s instead of files/sec for industry-standard metric
+- ETA calculation based on bytes remaining instead of file count for better accuracy
+- Enhanced progress function to accept bytes_uploaded and elapsed_seconds parameters
+
+### Technical Details
+- Modified `show_upload_progress()` function for MB/s calculation using `bc` for floating-point math
+- Updated `perform_sync()` to track bytes uploaded with proportional estimation
+- Added comprehensive test documentation in `docs/features/issue-3-upload-progress-testing.md`
+- All changes tested with multiple dataset sizes (10 files/10MB and 50 files/5MB)
+
+---
+
 ## [1.2.3] - 2025-11-07
 
 ### Fixed

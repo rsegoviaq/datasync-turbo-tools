@@ -207,6 +207,48 @@ s5cmd automatically performs incremental sync:
 - Skips unchanged files
 - Uses checksums for verification (if enabled)
 
+### Upload-Only Sync Behavior
+
+**Important**: The `datasync-s5cmd.sh` script implements **upload-only synchronization**.
+
+#### How It Works
+
+```bash
+# The sync command does NOT include --delete flag
+s5cmd sync --concurrency 64 /source/ s3://bucket/prefix/
+```
+
+**Behavior:**
+- ✅ Uploads new files
+- ✅ Updates modified files (by size/time comparison)
+- ✅ Skips unchanged files
+- ❌ **Never deletes files from S3**
+
+#### Empty Source Folder Safety
+
+**Q: What happens if I sync an empty source folder?**
+
+**A**: Nothing destructive!
+- 0 files uploaded (source is empty)
+- 0 files deleted (tool never deletes)
+- All existing S3 files remain intact
+
+This is a safety feature to prevent accidental data loss from:
+- Wrong directory path
+- Unmounted drives (appear empty)
+- Configuration errors
+
+#### If You Need Bidirectional Sync
+
+Use `s5cmd` directly with the `--delete` flag:
+
+```bash
+# CAUTION: This WILL delete files from S3
+s5cmd sync --delete /source/ s3://bucket/prefix/
+```
+
+**⚠️ Warning**: The `datasync-s5cmd.sh` script will detect and block --delete flag usage to maintain upload-only safety.
+
 ---
 
 ## Performance Tuning

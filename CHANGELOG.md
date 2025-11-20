@@ -5,6 +5,33 @@ All notable changes to DataSync Turbo Tools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2025-11-19
+
+### Added
+- **Upload-Only Sync Protection**: Added explicit validation to prevent destructive sync operations
+  - Validates that `--delete` flag is never used in both s5cmd and AWS CLI scripts
+  - Aborts sync with clear error message if destructive operations detected
+  - Ensures tool remains upload-only permanently
+  - Added code comments documenting upload-only design intent
+  - New `validate_upload_only()` function in both `datasync-s5cmd.sh` and `datasync-awscli.sh`
+
+### Changed
+- **Documentation**: Clarified upload-only sync behavior across all documentation
+  - Added "Upload-Only Sync Design" section to README.md
+  - Documented that empty source folders are safe and won't delete destination data
+  - Updated S5CMD_GUIDE.md with upload-only behavior explanation
+  - Enhanced COMPARISON.md to explain difference from bidirectional tools
+  - Added safety comment headers to config templates
+  - Updated version references from 1.3.0/1.3.1 to 1.3.2
+
+### Notes
+- This release confirms and protects existing safe behavior
+- No functionality changes - tool was already upload-only
+- Changes add explicit validation and documentation for clarity and future safety
+- Addresses user concerns about syncing with empty source directories
+
+---
+
 ## [1.3.1] - 2025-11-18
 
 ### Fixed

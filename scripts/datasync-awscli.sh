@@ -17,7 +17,7 @@ set -euo pipefail
 
 # Script metadata
 SCRIPT_NAME="datasync-awscli"
-SCRIPT_VERSION="1.2.1"
+SCRIPT_VERSION="1.3.2"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
@@ -200,6 +200,21 @@ validate_prerequisites() {
     echo ""
 }
 
+# Validate upload-only sync (no delete operations)
+validate_upload_only() {
+    log_info "Validating upload-only sync configuration..."
+
+    # Check if --delete flag is present
+    if echo "${AWS_SYNC_FLAGS:-} ${*}" | grep -q -- "--delete"; then
+        log_error "SAFETY CHECK FAILED: --delete flag detected!"
+        log_error "This tool is designed for UPLOAD-ONLY sync operations."
+        log_error "Using --delete would make sync bidirectional and could delete destination data."
+        exit 1
+    fi
+
+    log_success "Upload-only sync validated"
+}
+
 # Perform sync operation
 perform_sync() {
     log_header "Starting S3 Sync (AWS CLI)"
@@ -214,6 +229,11 @@ perform_sync() {
 
     log_info "Syncing: $SOURCE_DIR -> $destination"
     echo ""
+
+    # IMPORTANT: This is an UPLOAD-ONLY sync operation
+    # - Only uploads new/modified files (no --delete flag)
+    # - Never deletes files from S3
+    # - Safe to run with empty source directory
 
     # Build AWS CLI command
     local aws_cmd="aws s3 sync"
@@ -368,6 +388,7 @@ main() {
 
     load_configuration
     validate_prerequisites
+    validate_upload_only "$@"
 
     if perform_sync; then
         SYNC_STATUS="success"

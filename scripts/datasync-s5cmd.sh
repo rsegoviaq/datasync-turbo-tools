@@ -30,7 +30,7 @@ set -euo pipefail
 
 # Script metadata
 SCRIPT_NAME="datasync-s5cmd"
-SCRIPT_VERSION="1.3.1"
+SCRIPT_VERSION="1.3.2"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
@@ -388,6 +388,24 @@ count_source_files() {
     echo "$file_count"
 }
 
+# Validate upload-only sync (no delete operations)
+validate_upload_only() {
+    log_info "Validating upload-only sync configuration..."
+
+    # Check if --delete flag is present in any sync parameters
+    if echo "$S5CMD_SYNC_FLAGS ${*}" | grep -q -- "--delete"; then
+        log_error "SAFETY CHECK FAILED: --delete flag detected!"
+        log_error "This tool is designed for UPLOAD-ONLY sync operations."
+        log_error "Using --delete would make sync bidirectional and could delete destination data."
+        log_error ""
+        log_error "If you need bidirectional sync with deletions, please use a different tool."
+        log_error "Recommended: aws s3 sync with explicit --delete flag and proper safeguards"
+        exit 1
+    fi
+
+    log_success "Upload-only sync validated (no destructive operations)"
+}
+
 # Perform sync operation
 perform_sync() {
     log_header "Starting S3 Sync"
@@ -402,6 +420,12 @@ perform_sync() {
 
     log_info "Syncing: $SOURCE_DIR -> $destination"
     echo ""
+
+    # IMPORTANT: This is an UPLOAD-ONLY sync operation
+    # - Only new/modified files are uploaded to S3
+    # - NO files are ever deleted from S3 (no --delete flag)
+    # - Safe to run even with empty source directory
+    # - Destination data remains intact regardless of source state
 
     # Build s5cmd command
     local s5cmd_cmd="s5cmd"
@@ -698,6 +722,9 @@ main() {
 
     log_info "Preparing to upload $TOTAL_FILES_TO_UPLOAD files ($source_size_human)"
     echo ""
+
+    # Validate upload-only configuration
+    validate_upload_only "$@"
 
     # Perform sync
     if perform_sync; then

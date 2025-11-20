@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Status](https://img.shields.io/badge/status-production-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-1.3.0-blue)]()
+[![Version](https://img.shields.io/badge/version-1.3.2-blue)]()
 
 ## 🚀 Performance
 
@@ -26,7 +26,7 @@ Upload speeds that saturate high-bandwidth networks:
 
 ## 📋 Project Status
 
-**Current Status:** 🟢 **Production Ready (v1.3.0)**
+**Current Status:** 🟢 **Production Ready (v1.3.2)**
 
 This project is production-ready and available for deployment. The complete implementation includes:
 - ✅ High-performance s5cmd upload scripts
@@ -65,6 +65,40 @@ DataSync Turbo Tools is a companion project to [datasync-client-deployment](http
 - ✅ **Professional documentation** and guides
 - ✅ **One-command installation** with prerequisites check
 - ✅ **Benchmark tool** for performance comparison
+
+---
+
+## 🔒 Upload-Only Sync Design
+
+**Important Safety Feature**: This tool is designed for **upload-only synchronization**.
+
+### What This Means
+
+✅ **Safe Operations:**
+- Uploads new files to S3
+- Updates modified files in S3
+- Skips unchanged files
+- **Never deletes files from S3**
+
+✅ **Empty Source Folder Protection:**
+- Safe to sync even if source folder is empty
+- No destination data will be deleted
+- Existing S3 files remain completely intact
+
+❌ **Intentionally NOT Supported:**
+- Bidirectional sync (source ↔ destination)
+- Deleting files from S3 when removed from source
+- Mirroring operations with `--delete` flag
+
+### Why Upload-Only?
+
+This design choice prevents accidental data loss scenarios:
+- Syncing wrong directory (empty or wrong path)
+- Directory mount failures (appears empty)
+- Configuration errors
+- Accidental deletions
+
+**Need bidirectional sync?** Use `aws s3 sync --delete` directly with appropriate safeguards.
 
 ---
 

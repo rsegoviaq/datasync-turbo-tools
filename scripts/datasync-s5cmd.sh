@@ -54,6 +54,7 @@ FILES_SYNCED=0
 BYTES_TRANSFERRED=0
 SYNC_STATUS="unknown"
 TEMP_DIR=""
+ACTIVITY_MONITOR_PID=""
 
 # Progress tracking variables
 TOTAL_FILES_TO_UPLOAD=0
@@ -159,8 +160,57 @@ show_upload_progress() {
     log_info "Progress: $files_uploaded/$total_files files (${bytes_percent}% by size, ${files_percent}% by count) | ${bytes_display}/${total_display} | Speed: $throughput_mbps MB/s | $eta_string"
 }
 
+# Monitor upload activity to provide feedback during long file uploads
+# This function runs in background and displays periodic activity updates
+monitor_upload_activity() {
+    local progress_file=$1
+    local bytes_file=$2
+    local start_time=$3
+    local check_interval=10  # Check every 10 seconds
+    local last_count=0
+    local last_bytes=0
+    local stall_threshold=30  # Consider stalled if no progress for 30 seconds
+
+    while true; do
+        sleep $check_interval
+
+        # Check if main process is still running (if progress file exists)
+        if [ ! -f "$progress_file" ]; then
+            break
+        fi
+
+        # Get current progress
+        local current_count=$(cat "$progress_file" 2>/dev/null || echo "0")
+        local current_bytes=$(cat "$bytes_file" 2>/dev/null || echo "0")
+
+        # Calculate time since start
+        local current_time=$(date +%s)
+        local elapsed=$((current_time - start_time))
+
+        # Check if progress has stalled
+        if [ "$current_count" -eq "$last_count" ] && [ "$current_bytes" -eq "$last_bytes" ]; then
+            # No progress since last check
+            local time_stalled=$((elapsed % 60))  # Simplified stall tracking
+            if [ $time_stalled -ge $stall_threshold ]; then
+                echo -e "${YELLOW}[INFO]${NC} $(date +'%Y-%m-%d %H:%M:%S') - Upload active (no file completions in last ${time_stalled}s - large file in progress?)" | tee -a "$LOG_FILE"
+            else
+                echo -e "${CYAN}[INFO]${NC} $(date +'%Y-%m-%d %H:%M:%S') - Upload in progress... (${current_count} files completed, ${elapsed}s elapsed)" | tee -a "$LOG_FILE"
+            fi
+        fi
+
+        # Update tracking
+        last_count=$current_count
+        last_bytes=$current_bytes
+    done
+}
+
 # Cleanup on exit
 cleanup() {
+    # Kill background monitor if running
+    if [ -n "$ACTIVITY_MONITOR_PID" ]; then
+        kill "$ACTIVITY_MONITOR_PID" 2>/dev/null || true
+    fi
+
     if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
         rm -rf "$TEMP_DIR"
     fi
@@ -528,6 +578,11 @@ perform_sync() {
     local last_bytes_percent=0
     local last_update_time=0
     local upload_start_time=$(date +%s)
+
+    # Start background activity monitor to provide feedback during long file uploads
+    monitor_upload_activity "$progress_file" "$bytes_file" "$upload_start_time" &
+    ACTIVITY_MONITOR_PID=$!
+    log_info "Started upload activity monitor (PID: $ACTIVITY_MONITOR_PID)"
 
     # Execute s5cmd and capture output
     eval "$s5cmd_cmd" 2>&1 | tee "$output_file" | while IFS= read -r line; do

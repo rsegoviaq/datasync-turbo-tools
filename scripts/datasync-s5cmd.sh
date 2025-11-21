@@ -30,7 +30,7 @@ set -euo pipefail
 
 # Script metadata
 SCRIPT_NAME="datasync-s5cmd"
-SCRIPT_VERSION="1.3.2"
+SCRIPT_VERSION="1.4.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
@@ -54,6 +54,7 @@ FILES_SYNCED=0
 BYTES_TRANSFERRED=0
 SYNC_STATUS="unknown"
 TEMP_DIR=""
+ACTIVITY_MONITOR_PID=""
 
 # Progress tracking variables
 TOTAL_FILES_TO_UPLOAD=0
@@ -61,6 +62,8 @@ FILES_UPLOADED_COUNT=0
 LAST_PROGRESS_UPDATE=0
 PROGRESS_UPDATE_INTERVAL=10  # Update every N files
 PROGRESS_PERCENT_INTERVAL=5  # Or every N percent
+ACTUAL_BYTES_UPLOADED=0  # Track actual bytes uploaded
+PROGRESS_HISTORY=""  # JSON array of progress snapshots
 
 # Logging functions
 log_info() {
@@ -99,7 +102,29 @@ show_upload_progress() {
         return
     fi
 
-    local percent=$((files_uploaded * 100 / total_files))
+    # Calculate both file-count and byte-based percentages
+    local files_percent=$((files_uploaded * 100 / total_files))
+    local bytes_percent=0
+    if [ "$BYTES_TRANSFERRED" -gt 0 ]; then
+        bytes_percent=$((bytes_uploaded * 100 / BYTES_TRANSFERRED))
+    fi
+
+    # Format human-readable byte progress (GB or MB based on size)
+    local bytes_display=""
+    local total_display=""
+    if [ "$BYTES_TRANSFERRED" -ge 1073741824 ]; then
+        # Use GB for sizes >= 1GB
+        bytes_display=$(echo "scale=2; $bytes_uploaded / 1073741824" | bc)
+        total_display=$(echo "scale=2; $BYTES_TRANSFERRED / 1073741824" | bc)
+        bytes_display="${bytes_display}GB"
+        total_display="${total_display}GB"
+    else
+        # Use MB for smaller sizes
+        bytes_display=$(echo "scale=1; $bytes_uploaded / 1048576" | bc)
+        total_display=$(echo "scale=1; $BYTES_TRANSFERRED / 1048576" | bc)
+        bytes_display="${bytes_display}MB"
+        total_display="${total_display}MB"
+    fi
 
     # Calculate throughput in MB/s
     local throughput_mbps="0.0"
@@ -134,11 +159,60 @@ show_upload_progress() {
         fi
     fi
 
-    log_info "Progress: $files_uploaded/$total_files files ($percent%) | Speed: $throughput_mbps MB/s | $eta_string"
+    log_info "Progress: $files_uploaded/$total_files files (${bytes_percent}% by size, ${files_percent}% by count) | ${bytes_display}/${total_display} | Speed: $throughput_mbps MB/s | $eta_string"
+}
+
+# Monitor upload activity to provide feedback during long file uploads
+# This function runs in background and displays periodic activity updates
+monitor_upload_activity() {
+    local progress_file=$1
+    local bytes_file=$2
+    local start_time=$3
+    local check_interval=10  # Check every 10 seconds
+    local last_count=0
+    local last_bytes=0
+    local stall_threshold=30  # Consider stalled if no progress for 30 seconds
+
+    while true; do
+        sleep $check_interval
+
+        # Check if main process is still running (if progress file exists)
+        if [ ! -f "$progress_file" ]; then
+            break
+        fi
+
+        # Get current progress
+        local current_count=$(cat "$progress_file" 2>/dev/null || echo "0")
+        local current_bytes=$(cat "$bytes_file" 2>/dev/null || echo "0")
+
+        # Calculate time since start
+        local current_time=$(date +%s)
+        local elapsed=$((current_time - start_time))
+
+        # Check if progress has stalled
+        if [ "$current_count" -eq "$last_count" ] && [ "$current_bytes" -eq "$last_bytes" ]; then
+            # No progress since last check
+            local time_stalled=$((elapsed % 60))  # Simplified stall tracking
+            if [ $time_stalled -ge $stall_threshold ]; then
+                echo -e "${YELLOW}[INFO]${NC} $(date +'%Y-%m-%d %H:%M:%S') - Upload active (no file completions in last ${time_stalled}s - large file in progress?)" | tee -a "$LOG_FILE"
+            else
+                echo -e "${CYAN}[INFO]${NC} $(date +'%Y-%m-%d %H:%M:%S') - Upload in progress... (${current_count} files completed, ${elapsed}s elapsed)" | tee -a "$LOG_FILE"
+            fi
+        fi
+
+        # Update tracking
+        last_count=$current_count
+        last_bytes=$current_bytes
+    done
 }
 
 # Cleanup on exit
 cleanup() {
+    # Kill background monitor if running
+    if [ -n "$ACTIVITY_MONITOR_PID" ]; then
+        kill "$ACTIVITY_MONITOR_PID" 2>/dev/null || true
+    fi
+
     if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
         rm -rf "$TEMP_DIR"
     fi
@@ -498,55 +572,102 @@ perform_sync() {
     # Execute and capture output with real-time progress tracking
     # Use a temp file to track progress across subshells
     local progress_file="${TEMP_DIR}/progress.txt"
+    local bytes_file="${TEMP_DIR}/bytes.txt"
     echo "0" > "$progress_file"
+    echo "0" > "$bytes_file"
     FILES_UPLOADED_COUNT=0
     LAST_PROGRESS_UPDATE=0
+    local last_bytes_percent=0
+    local last_update_time=0
     local upload_start_time=$(date +%s)
+
+    # Start background activity monitor to provide feedback during long file uploads
+    monitor_upload_activity "$progress_file" "$bytes_file" "$upload_start_time" &
+    ACTIVITY_MONITOR_PID=$!
+    log_info "Started upload activity monitor (PID: $ACTIVITY_MONITOR_PID)"
 
     # Execute s5cmd and capture output
     eval "$s5cmd_cmd" 2>&1 | tee "$output_file" | while IFS= read -r line; do
         # Parse s5cmd output for completed uploads
         # s5cmd outputs lines like "cp s3://bucket/file" for each completed upload
-        if [[ "$line" =~ ^cp[[:space:]] ]] || [[ "$line" =~ uploaded ]]; then
+        if [[ "$line" =~ ^cp[[:space:]](.+)[[:space:]]s3:// ]] || [[ "$line" =~ uploaded ]]; then
             # Increment counter in temp file (to persist across subshells)
             local count=$(cat "$progress_file")
             count=$((count + 1))
             echo "$count" > "$progress_file"
 
+            # Extract file path and get actual file size
+            local actual_bytes_uploaded=$(cat "$bytes_file")
+            if [[ "$line" =~ ^cp[[:space:]](.+)[[:space:]]s3:// ]]; then
+                local source_file="${BASH_REMATCH[1]}"
+                # Get file size - handle both Linux and macOS
+                local file_size=0
+                if [[ -f "$source_file" ]]; then
+                    if [[ "$OSTYPE" == "darwin"* ]]; then
+                        file_size=$(stat -f%z "$source_file" 2>/dev/null || echo "0")
+                    else
+                        file_size=$(stat -c%s "$source_file" 2>/dev/null || echo "0")
+                    fi
+                    actual_bytes_uploaded=$((actual_bytes_uploaded + file_size))
+                    echo "$actual_bytes_uploaded" > "$bytes_file"
+                fi
+            fi
+
             # Calculate progress if total is known
             if [ "$TOTAL_FILES_TO_UPLOAD" -gt 0 ]; then
-                local progress_percent=$((count * 100 / TOTAL_FILES_TO_UPLOAD))
-                local files_since_update=$((count - LAST_PROGRESS_UPDATE))
+                local files_percent=$((count * 100 / TOTAL_FILES_TO_UPLOAD))
+                local bytes_percent=0
+                if [ "$BYTES_TRANSFERRED" -gt 0 ]; then
+                    bytes_percent=$((actual_bytes_uploaded * 100 / BYTES_TRANSFERRED))
+                fi
 
-                # Show progress at intervals
-                # Update on: first file, every N files, or every N percent
-                if [ $count -eq 1 ] || \
-                   [ $files_since_update -ge $PROGRESS_UPDATE_INTERVAL ] || \
-                   [ $((progress_percent % PROGRESS_PERCENT_INTERVAL)) -eq 0 -a $progress_percent -ne $((LAST_PROGRESS_UPDATE * 100 / TOTAL_FILES_TO_UPLOAD)) ]; then
+                # Calculate time since last update
+                local current_time=$(date +%s)
+                local time_since_update=$((current_time - last_update_time))
+                local bytes_percent_change=$((bytes_percent - last_bytes_percent))
 
-                    # Calculate bytes uploaded (proportional estimate based on file count)
-                    local bytes_uploaded=0
-                    if [ "$BYTES_TRANSFERRED" -gt 0 ] && [ "$TOTAL_FILES_TO_UPLOAD" -gt 0 ]; then
-                        bytes_uploaded=$((count * BYTES_TRANSFERRED / TOTAL_FILES_TO_UPLOAD))
+                # Capture progress history snapshots every 5%
+                local snapshot_interval=5
+                local prev_snapshot=$(( (last_bytes_percent / snapshot_interval) * snapshot_interval ))
+                local curr_snapshot=$(( (bytes_percent / snapshot_interval) * snapshot_interval ))
+                if [ $curr_snapshot -gt $prev_snapshot ] && [ $bytes_percent -gt 0 ]; then
+                    # Save snapshot
+                    local timestamp=$(date +%s)
+                    if [ -z "$PROGRESS_HISTORY" ]; then
+                        PROGRESS_HISTORY="{\"time\":$timestamp,\"bytes\":$actual_bytes_uploaded,\"files\":$count,\"percent\":$bytes_percent}"
+                    else
+                        PROGRESS_HISTORY="$PROGRESS_HISTORY,{\"time\":$timestamp,\"bytes\":$actual_bytes_uploaded,\"files\":$count,\"percent\":$bytes_percent}"
                     fi
+                fi
+
+                # Show progress at intervals:
+                # - First file
+                # - Every 5 seconds OR 2% progress by bytes
+                # - Last file
+                if [ $count -eq 1 ] || \
+                   [ $time_since_update -ge 5 ] || \
+                   [ $bytes_percent_change -ge 2 ] || \
+                   [ $count -eq $TOTAL_FILES_TO_UPLOAD ]; then
 
                     # Calculate elapsed time
-                    local current_time=$(date +%s)
                     local elapsed=$((current_time - upload_start_time))
                     # Set minimum 1 second to avoid division by zero
                     if [ $elapsed -eq 0 ]; then
                         elapsed=1
                     fi
 
-                    show_upload_progress "$count" "$TOTAL_FILES_TO_UPLOAD" "$bytes_uploaded" "$elapsed"
+                    show_upload_progress "$count" "$TOTAL_FILES_TO_UPLOAD" "$actual_bytes_uploaded" "$elapsed"
                     LAST_PROGRESS_UPDATE=$count
+                    last_bytes_percent=$bytes_percent
+                    last_update_time=$current_time
                 fi
             fi
         fi
     done
 
-    # Get final upload count from temp file
+    # Get final upload count and bytes from temp files
     FILES_UPLOADED_COUNT=$(cat "$progress_file" 2>/dev/null || echo "0")
+    ACTUAL_BYTES_UPLOADED=$(cat "$bytes_file" 2>/dev/null || echo "0")
 
     # Check if sync was successful
     local exit_code=$?
@@ -615,6 +736,12 @@ generate_json_output() {
         checksum_verified=true
     fi
 
+    # Calculate progress accuracy
+    local progress_accuracy=0
+    if [ "$BYTES_TRANSFERRED" -gt 0 ] && [ "$ACTUAL_BYTES_UPLOADED" -gt 0 ]; then
+        progress_accuracy=$((ACTUAL_BYTES_UPLOADED * 100 / BYTES_TRANSFERRED))
+    fi
+
     # Create JSON output file
     JSON_OUTPUT_FILE="${LOG_FILE%.log}.json"
 
@@ -624,6 +751,9 @@ generate_json_output() {
     "duration_seconds": $duration,
     "files_synced": $FILES_SYNCED,
     "bytes_transferred": $BYTES_TRANSFERRED,
+    "actual_bytes_transferred": $ACTUAL_BYTES_UPLOADED,
+    "estimated_bytes_transferred": $BYTES_TRANSFERRED,
+    "progress_accuracy_percent": $progress_accuracy,
     "source_size": "$source_size_human",
     "s3_objects": $FILES_SYNCED,
     "status": "$SYNC_STATUS",
@@ -633,6 +763,9 @@ generate_json_output() {
     "source": "$SOURCE_DIR",
     "destination": "$destination",
     "dry_run": $DRY_RUN,
+    "progress_history": [
+        $PROGRESS_HISTORY
+    ],
     "configuration": {
         "concurrency": $S5CMD_CONCURRENCY,
         "part_size": "$S5CMD_PART_SIZE",

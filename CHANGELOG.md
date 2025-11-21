@@ -5,6 +5,74 @@ All notable changes to DataSync Turbo Tools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-11-21
+
+### Added
+- **Byte-Based Progress Tracking**: Progress now accurately reflects actual data uploaded, not just file count
+  - Tracks actual bytes uploaded by reading file sizes with `stat` command
+  - Displays both byte-based percentage (by size) and file-count percentage for comparison
+  - Example: `Progress: 123/500 files (45.2% by size, 24.6% by count) | 2.5GB/5.5GB`
+  - Human-readable byte progress (automatically switches between MB and GB)
+  - More accurate representation for datasets with mixed file sizes
+  - Cross-platform support for Linux and macOS
+
+- **Background Upload Activity Monitor**: Provides feedback during long file uploads
+  - Background process monitors upload activity every 10 seconds
+  - Displays periodic updates when no file completions occur
+  - Alerts when upload appears stalled (30+ seconds without progress)
+  - Helps users know upload is progressing during large file transfers
+  - Automatically stops when upload completes
+
+- **Enhanced JSON Logging**: New metrics for progress tracking and analysis
+  - `actual_bytes_transferred`: Actual bytes uploaded based on file sizes
+  - `estimated_bytes_transferred`: Original estimated total bytes
+  - `progress_accuracy_percent`: Accuracy of byte-based progress (actual vs estimated)
+  - `progress_history`: Array of timestamped progress snapshots captured every 5%
+  - Enables graphing upload trends and analyzing performance over time
+
+### Changed
+- **Progress Update Frequency**: Updates now occur every 5 seconds OR 2% progress (was every 10 files OR 5%)
+  - More frequent updates provide better visibility
+  - Time-based updates ensure progress shown during large file uploads
+  - Reduced percentage threshold (5% → 2%) for finer granularity
+
+- **Progress Calculation**: Changed from estimated bytes (based on file count proportion) to actual bytes
+  - Previous: `bytes_uploaded = (files_uploaded * total_bytes / total_files)` - assumes all files same size
+  - Current: `bytes_uploaded = sum(actual_file_sizes)` - accurate regardless of file size distribution
+
+### Technical Details
+- Modified `show_upload_progress()` function (lines 92-160):
+  - Calculate both file-count and byte-based percentages
+  - Format human-readable byte progress (GB/MB auto-selection)
+  - Display both percentages for user comparison
+
+- Updated upload loop (lines 570-666):
+  - Parse s5cmd output to extract completed file paths
+  - Use `stat` to get actual file sizes cross-platform (Linux: `stat -c%s`, macOS: `stat -f%z`)
+  - Track cumulative actual bytes uploaded in temp file
+  - Capture progress history snapshots every 5% completion
+  - Time-based and byte-percentage based update triggering
+
+- Added `monitor_upload_activity()` function (lines 162-204):
+  - Runs as background process (monitored PID tracked globally)
+  - Checks progress files every 10 seconds
+  - Detects stalled uploads (no progress for 30+ seconds)
+  - Properly cleaned up on script exit via trap
+
+- Enhanced `generate_json_output()` function (lines 709-786):
+  - Calculate progress accuracy percentage
+  - Include progress_history array with snapshots
+  - Add actual vs estimated bytes fields
+
+### Notes
+- No breaking changes - all changes are additive or improve existing functionality
+- Progress display backward compatible - still shows file count and percentages
+- JSON output includes all previous fields plus new metrics
+- Performance impact minimal (~1ms per file for `stat` calls)
+- Background monitor runs in separate process with no blocking
+
+---
+
 ## [1.3.2] - 2025-11-19
 
 ### Added

@@ -30,7 +30,7 @@ set -euo pipefail
 
 # Script metadata
 SCRIPT_NAME="datasync-s5cmd"
-SCRIPT_VERSION="1.3.2"
+SCRIPT_VERSION="1.4.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
@@ -62,6 +62,8 @@ FILES_UPLOADED_COUNT=0
 LAST_PROGRESS_UPDATE=0
 PROGRESS_UPDATE_INTERVAL=10  # Update every N files
 PROGRESS_PERCENT_INTERVAL=5  # Or every N percent
+ACTUAL_BYTES_UPLOADED=0  # Track actual bytes uploaded
+PROGRESS_HISTORY=""  # JSON array of progress snapshots
 
 # Logging functions
 log_info() {
@@ -624,6 +626,20 @@ perform_sync() {
                 local time_since_update=$((current_time - last_update_time))
                 local bytes_percent_change=$((bytes_percent - last_bytes_percent))
 
+                # Capture progress history snapshots every 5%
+                local snapshot_interval=5
+                local prev_snapshot=$(( (last_bytes_percent / snapshot_interval) * snapshot_interval ))
+                local curr_snapshot=$(( (bytes_percent / snapshot_interval) * snapshot_interval ))
+                if [ $curr_snapshot -gt $prev_snapshot ] && [ $bytes_percent -gt 0 ]; then
+                    # Save snapshot
+                    local timestamp=$(date +%s)
+                    if [ -z "$PROGRESS_HISTORY" ]; then
+                        PROGRESS_HISTORY="{\"time\":$timestamp,\"bytes\":$actual_bytes_uploaded,\"files\":$count,\"percent\":$bytes_percent}"
+                    else
+                        PROGRESS_HISTORY="$PROGRESS_HISTORY,{\"time\":$timestamp,\"bytes\":$actual_bytes_uploaded,\"files\":$count,\"percent\":$bytes_percent}"
+                    fi
+                fi
+
                 # Show progress at intervals:
                 # - First file
                 # - Every 5 seconds OR 2% progress by bytes
@@ -649,8 +665,9 @@ perform_sync() {
         fi
     done
 
-    # Get final upload count from temp file
+    # Get final upload count and bytes from temp files
     FILES_UPLOADED_COUNT=$(cat "$progress_file" 2>/dev/null || echo "0")
+    ACTUAL_BYTES_UPLOADED=$(cat "$bytes_file" 2>/dev/null || echo "0")
 
     # Check if sync was successful
     local exit_code=$?
@@ -719,6 +736,12 @@ generate_json_output() {
         checksum_verified=true
     fi
 
+    # Calculate progress accuracy
+    local progress_accuracy=0
+    if [ "$BYTES_TRANSFERRED" -gt 0 ] && [ "$ACTUAL_BYTES_UPLOADED" -gt 0 ]; then
+        progress_accuracy=$((ACTUAL_BYTES_UPLOADED * 100 / BYTES_TRANSFERRED))
+    fi
+
     # Create JSON output file
     JSON_OUTPUT_FILE="${LOG_FILE%.log}.json"
 
@@ -728,6 +751,9 @@ generate_json_output() {
     "duration_seconds": $duration,
     "files_synced": $FILES_SYNCED,
     "bytes_transferred": $BYTES_TRANSFERRED,
+    "actual_bytes_transferred": $ACTUAL_BYTES_UPLOADED,
+    "estimated_bytes_transferred": $BYTES_TRANSFERRED,
+    "progress_accuracy_percent": $progress_accuracy,
     "source_size": "$source_size_human",
     "s3_objects": $FILES_SYNCED,
     "status": "$SYNC_STATUS",
@@ -737,6 +763,9 @@ generate_json_output() {
     "source": "$SOURCE_DIR",
     "destination": "$destination",
     "dry_run": $DRY_RUN,
+    "progress_history": [
+        $PROGRESS_HISTORY
+    ],
     "configuration": {
         "concurrency": $S5CMD_CONCURRENCY,
         "part_size": "$S5CMD_PART_SIZE",
